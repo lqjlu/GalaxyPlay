@@ -16,7 +16,7 @@ args = parser.parse_args()
 assert re.fullmatch(r'emulator-\d+', args.serial), '只允许模拟器'
 assert re.fullmatch(r'127\.0\.0\.1:\d+', args.frida_address), '只允许本地转发'
 base = [args.adb, '-s', args.serial]
-package = 'com.ecarx.carplay'
+package = 'com.galaxy.carplay'
 output = Path('build/previews/app-update-layout')
 output.mkdir(parents=True, exist_ok=True)
 

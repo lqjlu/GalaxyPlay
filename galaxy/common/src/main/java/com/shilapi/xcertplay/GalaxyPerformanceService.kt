@@ -116,10 +116,10 @@ class GalaxyPerformanceService : Service() {
     }
     companion object {
         private const val CHANNEL = "galaxy_performance"
-        private const val START = "com.ecarx.carplay.PERFORMANCE_START"
-        private const val STOP = "com.ecarx.carplay.PERFORMANCE_STOP"
-        private const val DEEP = "com.ecarx.carplay.PERFORMANCE_DEEP"
-        private const val OVERLAY = "com.ecarx.carplay.PERFORMANCE_OVERLAY"
+        private const val START = "com.galaxy.carplay.PERFORMANCE_START"
+        private const val STOP = "com.galaxy.carplay.PERFORMANCE_STOP"
+        private const val DEEP = "com.galaxy.carplay.PERFORMANCE_DEEP"
+        private const val OVERLAY = "com.galaxy.carplay.PERFORMANCE_OVERLAY"
         fun start(context: Context) = runCatching { context.startForegroundService(Intent(context, GalaxyPerformanceService::class.java).setAction(START)) }
         fun stop(context: Context) { context.stopService(Intent(context, GalaxyPerformanceService::class.java)) }
         fun deep(context: Context) { if (GalaxyPerformanceState.running) context.startService(Intent(context, GalaxyPerformanceService::class.java).setAction(DEEP)) }

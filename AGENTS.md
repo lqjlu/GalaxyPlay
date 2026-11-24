@@ -12,7 +12,7 @@ Galaxy Play 是面向吉利银河（Geely Galaxy）车机、基于 DiPlay 的开
 | 平台 | 8155、Flyme OS / Android 11（API 30） |
 | 屏幕 | 13.2 英寸、1440×1920、3:4 竖屏 |
 | 最低系统 | Android 10（API 29），mobile 的 minSdk = 29 |
-| 包名 | com.ecarx.carplay，调试与发布一致 |
+| 包名 | com.galaxy.carplay，调试与发布一致 |
 
 - 配置不等于全系实测；窗口、Insets、密度、codec、内存、音频与权限以运行时和实车为准。
 - 产品展示名称为 Galaxy Play，源码仓库目录保持 GalaxyPlay，工作区根目录保留 L7Play；包名、L7 类名、存储键和车型标识保持兼容，改名不扩大实车验收范围。

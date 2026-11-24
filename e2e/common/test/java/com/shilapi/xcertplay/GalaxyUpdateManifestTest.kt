@@ -9,7 +9,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.net.URI
 
-internal fun updateManifest(size: Int = 3, digest: String = "a".repeat(64), pkg: String = "com.ecarx.carplay"): JSONObject = JSONObject().apply {
+internal fun updateManifest(size: Int = 3, digest: String = "a".repeat(64), pkg: String = "com.galaxy.carplay"): JSONObject = JSONObject().apply {
     put("schemaVersion", 1); put("appId", "com-ecarx-carplay"); put("packageName", pkg)
     put("version", "0.1.119"); put("versionCode", 147); put("minSdkVersion", 29)
     put("releaseNotes", "- 更新"); put("size", size); put("sha256", digest)
@@ -21,7 +21,7 @@ internal fun updateManifest(size: Int = 3, digest: String = "a".repeat(64), pkg:
 @Config(sdk = [29])
 class GalaxyUpdateManifestTest {
     private val base = GalaxyUpdateManifest.endpoint
-    private fun parse(json: JSONObject) = GalaxyUpdateManifest.parse(json.toString(), base, "com.ecarx.carplay")
+    private fun parse(json: JSONObject) = GalaxyUpdateManifest.parse(json.toString(), base, "com.galaxy.carplay")
     private fun reject(json: JSONObject) {
         try { parse(json); fail("invalid manifest accepted") }
         catch (error: GalaxyUpdateException) { assertEquals(GalaxyUpdateFailure.MANIFEST, error.reason) }

@@ -56,7 +56,7 @@ def find(label):
             adb('shell', 'input', 'swipe', '1000', start, '1000', end, '250')
     raise AssertionError('找不到入口：' + label)
 
-adb('shell', 'am', 'start', '-n', 'com.ecarx.carplay/com.shilapi.xcertplay.GalaxySettingsActivity', '--es', 'page', 'settings-debug-logs')
+adb('shell', 'am', 'start', '-n', 'com.galaxy.carplay/com.shilapi.xcertplay.GalaxySettingsActivity', '--es', 'page', 'settings-debug-logs')
 find('OpenObserve 日志服务器')
 find('日志名称')
 stream = next(n.get('text') for n in nodes() if re.fullmatch(r'(?:[a-z0-9]+(?:_[a-z0-9]+)*_)?[a-f0-9]{5}(?:_[a-f0-9]{5}){3}', n.get('text', '')))
@@ -67,7 +67,7 @@ elif example_stream == '{DeviceID}':
     actual_endpoint = endpoint.replace('{DeviceID}', stream)
 assert actual_endpoint in [n.get('text') for n in nodes()], '应用实际上传地址与 .env 的组织及本机日志名称不一致，未上传'
 lines = '\n'.join(f'{marker} sample={index} level=info AVD synthetic upload verification' for index in range(1, 4)) + '\n'
-command = 'run-as com.ecarx.carplay sh -c ' + shlex.quote('mkdir -p files/logs && cat >> files/logs/diplay.log')
+command = 'run-as com.galaxy.carplay sh -c ' + shlex.quote('mkdir -p files/logs && cat >> files/logs/diplay.log')
 subprocess.run(base + ['shell', command], input=lines.encode(), check=True, capture_output=True)
 node = find('上传日志')
 x1, y1, x2, y2 = map(int, re.findall(r'\d+', node.get('bounds')))

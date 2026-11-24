@@ -16,7 +16,7 @@ parser.add_argument('--output-dir', default='build/previews/wired-vpn')
 args = parser.parse_args()
 assert re.fullmatch(r'emulator-\d+', args.serial), '只允许 AVD'
 base = [args.adb, '-s', args.serial]
-package = 'com.ecarx.carplay'
+package = 'com.galaxy.carplay'
 vpn_package = 'com.android.vpndialogs'
 output = Path(args.output_dir)
 output.mkdir(parents=True, exist_ok=True)

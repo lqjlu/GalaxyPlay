@@ -13,7 +13,7 @@ parser.add_argument('--serial', default='emulator-5556')
 parser.add_argument('--evidence-only', action='store_true', help='只复验显式采集及日志落盘')
 args = parser.parse_args()
 assert re.fullmatch(r'emulator-\d+', args.serial), '只允许 AVD'
-package = 'com.ecarx.carplay'
+package = 'com.galaxy.carplay'
 output = Path('build/previews/debug-logs-module')
 output.mkdir(parents=True, exist_ok=True)
 

@@ -28,7 +28,7 @@ def adb(*parts, binary=False):
     return data if binary else data.decode()
 
 def launch():
-    adb('shell', 'am', 'start', '-n', 'com.ecarx.carplay/com.shilapi.xcertplay.GalaxySettingsActivity', '--es', 'page', 'settings-debug-logs')
+    adb('shell', 'am', 'start', '-n', 'com.galaxy.carplay/com.shilapi.xcertplay.GalaxySettingsActivity', '--es', 'page', 'settings-debug-logs')
     time.sleep(.7)
 
 def nodes():
@@ -61,7 +61,7 @@ def fill():
     fields=[n for n in nodes() if n.get('class')=='android.widget.EditText']
     assert fields[1].get('password')=='true' and 'Basic ' not in fields[1].get('text',''), '认证输入未隐藏'
 
-backup=subprocess.run(base+['exec-out','run-as','com.ecarx.carplay','cat',prefs],capture_output=True)
+backup=subprocess.run(base+['exec-out','run-as','com.galaxy.carplay','cat',prefs],capture_output=True)
 # exec-out 不保证透传远端 cat 的退出码；不能把缺少文件的错误文字还原成配置。
 backup_data=None
 if backup.stdout.strip():
@@ -71,16 +71,16 @@ if backup.stdout.strip():
         assert ET.fromstring(backup.stdout).tag=='map', '原配置格式异常，停止测试以免覆盖'
         backup_data=backup.stdout
 try:
-    adb('shell','am','force-stop','com.ecarx.carplay')
-    adb('shell','run-as','com.ecarx.carplay','rm','-f',prefs)
+    adb('shell','am','force-stop','com.galaxy.carplay')
+    adb('shell','run-as','com.galaxy.carplay','rm','-f',prefs)
     launch()
     find('上传状态')
     summary = next(n.get('text') for n in nodes() if n.get('text', '').startswith(('未上传', '已上传\n')))
     tap('OpenObserve 日志服务器');fill();screenshot('configuration');tap('取消')
-    current=subprocess.run(base+['exec-out','run-as','com.ecarx.carplay','cat',prefs],capture_output=True).stdout.decode()
+    current=subprocess.run(base+['exec-out','run-as','com.galaxy.carplay','cat',prefs],capture_output=True).stdout.decode()
     assert url not in current, '取消却保存配置'
     tap('OpenObserve 日志服务器');fill();tap('保存')
-    saved=ET.fromstring(adb('exec-out','run-as','com.ecarx.carplay','cat',prefs))
+    saved=ET.fromstring(adb('exec-out','run-as','com.galaxy.carplay','cat',prefs))
     values={n.get('name'):n.text for n in saved}
     assert values.get('endpoint')==url and values.get('authorization')==authorization
     find('上传日志');screenshot('configured')
@@ -90,9 +90,9 @@ try:
     screenshot('defaults')
     print('AVD 配置检查通过：双输入框、取消不保存、保存不上传、恢复默认值；未发送日志。')
 finally:
-    adb('shell','am','force-stop','com.ecarx.carplay')
+    adb('shell','am','force-stop','com.galaxy.carplay')
     if backup_data is not None:
-        command='run-as com.ecarx.carplay sh -c '+shlex.quote('cat > '+prefs)
+        command='run-as com.galaxy.carplay sh -c '+shlex.quote('cat > '+prefs)
         subprocess.run(base+['shell',command],input=backup_data,check=True,capture_output=True)
-    else:adb('shell','run-as','com.ecarx.carplay','rm','-f',prefs)
+    else:adb('shell','run-as','com.galaxy.carplay','rm','-f',prefs)
     launch()

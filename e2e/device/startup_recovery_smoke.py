@@ -14,7 +14,7 @@ parser.add_argument('--serial', default='emulator-5556')
 args = parser.parse_args()
 assert re.fullmatch(r'emulator-\d+', args.serial), '只允许 AVD'
 base = [args.adb, '-s', args.serial]
-package = 'com.ecarx.carplay'
+package = 'com.galaxy.carplay'
 prefs_path = 'shared_prefs/diplay.xml'
 activity = package+'/com.shilapi.xcertplay.GalaxySettingsActivity'
 output = Path('build/previews/startup-recovery')

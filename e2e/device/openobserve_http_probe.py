@@ -25,7 +25,7 @@ for line in (root / '.env').read_text().splitlines():
         key, value = line.split('=', 1)
         config[key] = value.strip().strip('\"\'')
 prefs = ET.fromstring(subprocess.check_output([args.adb, '-s', args.serial, 'shell', 'run-as',
-    'com.ecarx.carplay', 'cat', 'shared_prefs/l7_log_device.xml'], stderr=subprocess.DEVNULL))
+    'com.galaxy.carplay', 'cat', 'shared_prefs/l7_log_device.xml'], stderr=subprocess.DEVNULL))
 device = prefs.find("string[@name='id']").text
 assert re.fullmatch(r'[a-z0-9_]+_[a-f0-9]{5}(?:_[a-f0-9]{5}){3}', device)
 base, slot, suffix = config['GALAXY_PLAY_LOG_SERVER_URL'].rsplit('/', 2)

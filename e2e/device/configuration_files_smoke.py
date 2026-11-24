@@ -20,7 +20,7 @@ p.add_argument('--output-dir', type=Path, required=True)
 a = p.parse_args()
 assert re.fullmatch(r'emulator-\d+', a.serial)
 a.output_dir.mkdir(parents=True, exist_ok=True)
-package = 'com.ecarx.carplay'
+package = 'com.galaxy.carplay'
 
 
 def adb(*args, binary=False):

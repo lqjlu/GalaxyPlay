@@ -19,7 +19,7 @@ parser.add_argument('--clear-only', action='store_true', help='仅复核清空�
 args = parser.parse_args()
 assert re.fullmatch(r'emulator-\d+', args.serial), '只允许 AVD'
 base = [args.adb, '-s', args.serial]
-package = 'com.ecarx.carplay'
+package = 'com.galaxy.carplay'
 prefs = 'shared_prefs/l7_remote_log.xml'
 history_prefs = 'shared_prefs/l7_log_history.xml'
 output = Path('build/previews/task-dialog')

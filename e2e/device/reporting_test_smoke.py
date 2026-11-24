@@ -17,7 +17,7 @@ parser.add_argument('--cases', nargs='+', choices=['zh-day', 'zh-night', 'en-day
 args = parser.parse_args()
 assert re.fullmatch(r'emulator-\d+', args.serial), '仅允许 AVD'
 base = [args.adb, '-s', args.serial]
-package = 'com.ecarx.carplay'
+package = 'com.galaxy.carplay'
 output = Path('build/previews/reporting-test')
 output.mkdir(parents=True, exist_ok=True)
 

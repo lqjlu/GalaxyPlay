@@ -19,7 +19,7 @@ if not re.fullmatch(r'emulator-\d+', args.serial):
     parser.error('仅允许模拟器')
 output = args.output_dir or Path(__file__).resolve().parents[2] / 'build/previews/configuration-profiles'
 output.mkdir(parents=True, exist_ok=True)
-package = 'com.ecarx.carplay'
+package = 'com.galaxy.carplay'
 
 
 def adb(*command, binary=False):

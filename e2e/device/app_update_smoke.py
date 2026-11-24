@@ -19,7 +19,7 @@ assert re.fullmatch(r'emulator-\d+', args.serial), '只允许模拟器'
 if args.install_update:
     assert args.from_code and args.to_code and args.to_code > args.from_code, '安装验收需要明确起止版本'
 base = [args.adb, '-s', args.serial]
-package = 'com.ecarx.carplay'
+package = 'com.galaxy.carplay'
 component = package + '/com.shilapi.xcertplay.GalaxySettingsActivity'
 output = Path('build/previews/app-update')
 output.mkdir(parents=True, exist_ok=True)

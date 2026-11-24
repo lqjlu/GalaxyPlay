@@ -17,7 +17,7 @@ if not re.fullmatch(r'emulator-\d+', args.serial):
     parser.error('只允许 AVD')
 args.output_dir.mkdir(parents=True, exist_ok=True)
 base = [args.adb, '-s', args.serial]
-package = 'com.ecarx.carplay'
+package = 'com.galaxy.carplay'
 
 def adb(*parts, binary=False):
     result = subprocess.check_output(base + list(parts))

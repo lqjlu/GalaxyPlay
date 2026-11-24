@@ -29,7 +29,7 @@ def nodes():
 
 
 def launch(page):
-    adb('shell', 'am', 'start', '-n', 'com.ecarx.carplay/com.shilapi.xcertplay.GalaxySettingsActivity', '--es', 'page', page)
+    adb('shell', 'am', 'start', '-n', 'com.galaxy.carplay/com.shilapi.xcertplay.GalaxySettingsActivity', '--es', 'page', page)
     time.sleep(.3)
 
 
@@ -171,7 +171,7 @@ else:
     assert 'USB is not ready' in labels, '未显示 USB 能力不足提示'
     screenshot('usb-unavailable'); tap('Close')
     print('当前 AVD 不支持 USB Host，已验证能力不足提示；未执行 USB 等待场景。')
-services = adb('shell', 'dumpsys', 'activity', 'services', 'com.ecarx.carplay').decode()
+services = adb('shell', 'dumpsys', 'activity', 'services', 'com.galaxy.carplay').decode()
 assert not re.search(r'ServiceRecord.*(?:DiPlaySessionService|CarPlayVpnService)', services), '取消后连接服务仍在运行'
 launch('home')
 english('返回首页')

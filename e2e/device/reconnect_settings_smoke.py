@@ -11,7 +11,7 @@ parser.add_argument('--adb', default='../tools/scripts/adb.sh')
 parser.add_argument('--serial', default='emulator-5556')
 args = parser.parse_args()
 assert re.fullmatch(r'emulator-\d+', args.serial), '只允许 AVD'
-package = 'com.ecarx.carplay'
+package = 'com.galaxy.carplay'
 output = Path('build/previews/reconnect-settings')
 output.mkdir(parents=True, exist_ok=True)
 

@@ -59,7 +59,7 @@ internal object RemoteLogDevice {
     internal fun derive(source: String, value: String,
                         manufacturer: String = Build.MANUFACTURER, model: String = Build.MODEL): String {
         val bytes = MessageDigest.getInstance("SHA-256")
-            .digest("com.ecarx.carplay/log-device/v1\u0000$source\u0000$value".toByteArray(Charsets.UTF_8))
+            .digest("com.galaxy.carplay/log-device/v1\u0000$source\u0000$value".toByteArray(Charsets.UTF_8))
         val hex = bytes.take(10).joinToString("") { "%02x".format(Locale.ROOT, it.toInt() and 0xff) }
         return modelPrefix(manufacturer, model) + "_" + hex.chunked(5).joinToString("_")
     }

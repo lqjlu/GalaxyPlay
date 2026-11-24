@@ -6,7 +6,7 @@ import android.content.Intent
 
 /** 原厂播放入口只返回当前会话；过期卡片不能自动连接或恢复已经停止的手机会话。 */
 internal object GalaxyMediaEntry {
-    const val PLAYER_ACTION = "com.ecarx.carplay.action.OPEN_CURRENT_PLAYER"
+    const val PLAYER_ACTION = "com.galaxy.carplay.action.OPEN_CURRENT_PLAYER"
 
     fun pendingIntent(context: Context, player: Boolean): PendingIntent = PendingIntent.getActivity(
         context, if (player) 43 else 42,

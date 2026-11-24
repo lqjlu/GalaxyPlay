@@ -88,7 +88,7 @@ def settings_selected():
 
 
 def launch(page='home'):
-    adb('shell', 'am', 'start', '-n', 'com.ecarx.carplay/com.shilapi.xcertplay.GalaxySettingsActivity', '--es', 'page', page)
+    adb('shell', 'am', 'start', '-n', 'com.galaxy.carplay/com.shilapi.xcertplay.GalaxySettingsActivity', '--es', 'page', page)
     time.sleep(1)
 
 
@@ -318,13 +318,13 @@ def connection_smoke():
     require_labels(['返回 GalaxyPlay', '取消连接'])
     screenshot('usb-wait-large-night')
     tap('返回 GalaxyPlay')
-    services = adb('shell', 'dumpsys', 'activity', 'services', 'com.ecarx.carplay')
+    services = adb('shell', 'dumpsys', 'activity', 'services', 'com.galaxy.carplay')
     assert 'DiPlaySessionService' in services, '返回结束了等待会话'
     tap('查看连接进度')
     require_labels(['取消连接'])
     tap('取消连接')
     time.sleep(1)
-    services = adb('shell', 'dumpsys', 'activity', 'services', 'com.ecarx.carplay')
+    services = adb('shell', 'dumpsys', 'activity', 'services', 'com.galaxy.carplay')
     assert not re.search(r'ServiceRecord.*(?:DiPlaySessionService|L7DebugOverlayService)', services), '原页取消后会话服务仍在运行'
     screenshot('usb-cancelled-home')
     print('USB 等待页检查通过：昼夜/大字操作可达、返回保留会话、原页取消释放服务；未验证真实 USB 连接。', flush=True)
@@ -338,19 +338,19 @@ audio_fixture = {}
 def write_audio_fixture(path, data):
     assert path in ('shared_prefs/l7_audio_templates.xml', 'files/audio-template.json', 'files/audio-template.json.bak')
     if data is None:
-        adb('shell', 'run-as', 'com.ecarx.carplay', 'rm', '-f', path)
+        adb('shell', 'run-as', 'com.galaxy.carplay', 'rm', '-f', path)
     else:
-        subprocess.run([args.adb, '-s', args.serial, 'shell', 'run-as', 'com.ecarx.carplay',
+        subprocess.run([args.adb, '-s', args.serial, 'shell', 'run-as', 'com.galaxy.carplay',
                         'sh', '-c', "'cat > " + path + "'"], input=data, check=True, capture_output=True)
 
 
 def prepare_audio_fixture():
     # 内置方案隐藏逐用途编辑；本场景使用 L7 自定义模式，结束原样恢复偏好。
-    adb('shell', 'am', 'force-stop', 'com.ecarx.carplay')
+    adb('shell', 'am', 'force-stop', 'com.galaxy.carplay')
     path = 'shared_prefs/l7_audio_templates.xml'
     for candidate in (path, 'files/audio-template.json', 'files/audio-template.json.bak'):
         original = subprocess.run([args.adb, '-s', args.serial, 'exec-out', 'run-as',
-                                   'com.ecarx.carplay', 'cat', candidate], capture_output=True)
+                                   'com.galaxy.carplay', 'cat', candidate], capture_output=True)
         if original.returncode and b'No such file' not in original.stderr:
             raise AssertionError('不能备份音频方案')
         audio_fixture[candidate] = original.stdout if original.returncode == 0 else None
@@ -371,7 +371,7 @@ try:
     if args.audio_only:
         prepare_audio_fixture()
     if args.connection_only:
-        adb('shell', 'am', 'force-stop', 'com.ecarx.carplay')
+        adb('shell', 'am', 'force-stop', 'com.galaxy.carplay')
     launch('settings')
     ensure_chinese()
     nodes()
@@ -493,7 +493,7 @@ try:
     frame_changed = True
     tap('保存，下次连接生效')
     settings_selected()
-    services = adb('shell', 'dumpsys', 'activity', 'services', 'com.ecarx.carplay')
+    services = adb('shell', 'dumpsys', 'activity', 'services', 'com.galaxy.carplay')
     assert 'DiPlaySessionService' in services, '保存设置结束了等待会话'
     screenshot('saved-setting-with-session')
     tap('帧率')
@@ -503,7 +503,7 @@ try:
     tap('画面')
     tap('取消连接')
     time.sleep(1)
-    services = adb('shell', 'dumpsys', 'activity', 'services', 'com.ecarx.carplay')
+    services = adb('shell', 'dumpsys', 'activity', 'services', 'com.galaxy.carplay')
     assert not re.search(r'ServiceRecord.*(?:DiPlaySessionService|L7DebugOverlayService)', services), '取消后会话服务仍在运行'
     screenshot('cancelled-home-day')
     print('AVD 检查通过：设置归属/恢复、热点/认证/语言弹窗、输入错误、选择取消、昼夜与大字截图、USB 等待取消。')
@@ -536,10 +536,10 @@ finally:
         if original_night in ('yes', 'no', 'auto'):
             adb('shell', 'cmd', 'uimode', 'night', original_night)
         if audio_fixture:
-            adb('shell', 'am', 'force-stop', 'com.ecarx.carplay')
+            adb('shell', 'am', 'force-stop', 'com.galaxy.carplay')
             for path, data in audio_fixture.items():
                 write_audio_fixture(path, data)
                 restored = subprocess.run([args.adb, '-s', args.serial, 'exec-out', 'run-as',
-                                           'com.ecarx.carplay', 'cat', path], capture_output=True)
+                                           'com.galaxy.carplay', 'cat', path], capture_output=True)
                 assert (restored.stdout if restored.returncode == 0 else None) == data, '音频偏好恢复失败'
             launch('settings-audio')

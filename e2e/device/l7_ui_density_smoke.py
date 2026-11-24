@@ -15,7 +15,7 @@ if not re.fullmatch(r'emulator-\d+', args.serial):
     parser.error('仅允许模拟器')
 out = Path(__file__).resolve().parents[2] / 'build/previews/ui-density'
 out.mkdir(parents=True, exist_ok=True)
-package = 'com.ecarx.carplay'
+package = 'com.galaxy.carplay'
 
 
 def adb(*words):

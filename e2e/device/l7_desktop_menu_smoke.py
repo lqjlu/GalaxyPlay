@@ -13,7 +13,7 @@ parser.add_argument('--serial', default='emulator-5556')
 args = parser.parse_args()
 if not re.fullmatch(r'emulator-\d+', args.serial):
     parser.error('仅允许模拟器')
-package = 'com.ecarx.carplay'
+package = 'com.galaxy.carplay'
 out = Path(__file__).resolve().parents[2] / 'build/previews/desktop-shortcut'
 out.mkdir(parents=True, exist_ok=True)
 

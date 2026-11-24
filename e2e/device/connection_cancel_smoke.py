@@ -15,7 +15,7 @@ parser.add_argument('--frida-address', default='127.0.0.1:28066')
 args = parser.parse_args()
 assert re.fullmatch(r'emulator-\d+', args.serial), '只允许模拟器'
 assert re.fullmatch(r'127\.0\.0\.1:\d+', args.frida_address), '只允许本地转发'
-package = 'com.ecarx.carplay'
+package = 'com.galaxy.carplay'
 base = [args.adb, '-s', args.serial]
 output = Path('build/previews/133-cancellation')
 output.mkdir(parents=True, exist_ok=True)

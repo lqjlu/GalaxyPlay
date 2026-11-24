@@ -66,7 +66,7 @@ def scan_enabled():
 
 
 def settings_ui():
-    package = 'com.ecarx.carplay'
+    package = 'com.galaxy.carplay'
     prefs = ('shared_prefs/xcertplay_airplay.xml', 'shared_prefs/diplay.xml')
     keys = ('wifi_high_performance_enabled', 'wifi_scan_pause_enabled')
 

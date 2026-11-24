@@ -20,7 +20,7 @@ if not re.fullmatch(r'emulator-\d+', args.serial):
 root = Path(__file__).resolve().parents[2]
 out = args.output_dir or root / 'build/previews/floating-navigation'
 out.mkdir(parents=True, exist_ok=True)
-package = 'com.ecarx.carplay'
+package = 'com.galaxy.carplay'
 
 def adb(*words, check=True):
     return subprocess.run([args.adb, '-s', args.serial, *words], check=check, capture_output=True).stdout.decode()

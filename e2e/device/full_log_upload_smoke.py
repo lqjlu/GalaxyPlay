@@ -18,7 +18,7 @@ parser.add_argument('--output-dir', default='build/previews/full-log-upload')
 args = parser.parse_args()
 assert re.fullmatch(r'emulator-\d+', args.serial), '只允许模拟器'
 base = [args.adb, '-s', args.serial]
-package = 'com.ecarx.carplay'
+package = 'com.galaxy.carplay'
 output = Path(args.output_dir)
 output.mkdir(parents=True, exist_ok=True)
 received, accepted, accepted_rows, received_streams = [], [], [], []

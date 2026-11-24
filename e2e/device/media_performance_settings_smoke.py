@@ -13,7 +13,7 @@ parser.add_argument('--serial', default='emulator-5556')
 parser.add_argument('--output-dir', type=Path, default=Path('build/e2e/media-performance'))
 args = parser.parse_args()
 assert re.fullmatch(r'emulator-\d+', args.serial), '仅允许 AVD'
-package = 'com.ecarx.carplay'
+package = 'com.galaxy.carplay'
 args.output_dir.mkdir(parents=True, exist_ok=True)
 
 

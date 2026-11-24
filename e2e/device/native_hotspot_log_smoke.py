@@ -13,7 +13,7 @@ parser.add_argument('--serial', default='emulator-5556')
 parser.add_argument('--gate-only', action='store_true', help='中文 AVD：仅临时拒绝修改设置权限以检查原生热点开启权限，结束恢复原值')
 args = parser.parse_args()
 assert re.fullmatch(r'emulator-\d+', args.serial), '只允许 AVD'
-package = 'com.ecarx.carplay'
+package = 'com.galaxy.carplay'
 output = Path('build/previews/native-hotspot-logs')
 output.mkdir(parents=True, exist_ok=True)
 

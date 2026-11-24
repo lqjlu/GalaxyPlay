@@ -31,8 +31,8 @@ class VpnPreConsentTest {
      * 放行命令必须作用于本应用自身的包名，否则放行的是别的应用。
      */
     @Test fun allowCommandTargetsOwnPackage() {
-        val command = VpnPreConsent.allowCommand("com.ecarx.carplay")
-        assertTrue(command.contains("appops set com.ecarx.carplay ACTIVATE_VPN allow"))
+        val command = VpnPreConsent.allowCommand("com.galaxy.carplay")
+        assertTrue(command.contains("appops set com.galaxy.carplay ACTIVATE_VPN allow"))
     }
 
     /**
@@ -42,7 +42,7 @@ class VpnPreConsentTest {
         val adb = FakeAdb(reachable = true)
         assertTrue(VpnPreConsent.grant(RuntimeEnvironment.getApplication(), adb))
         assertEquals(1, adb.commands.size)
-        assertTrue(adb.commands.single().contains("com.ecarx.carplay"))
+        assertTrue(adb.commands.single().contains("com.galaxy.carplay"))
     }
 
     /**

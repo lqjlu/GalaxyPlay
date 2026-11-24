@@ -14,7 +14,7 @@ parser.add_argument('--wifi-only', action='store_true', help='仅复核独立 Wi
 args = parser.parse_args()
 assert re.fullmatch(r'emulator-\d+', args.serial), '只允许 AVD'
 base = [args.adb, '-s', args.serial]
-package = 'com.ecarx.carplay'
+package = 'com.galaxy.carplay'
 output = Path('build/previews/connection-guide')
 output.mkdir(parents=True, exist_ok=True)
 

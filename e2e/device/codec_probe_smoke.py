@@ -17,7 +17,7 @@ parser.add_argument('--buffer-only', action='store_true', help='只检查先呈�
 parser.add_argument('--output-dir', type=Path, default=Path('build/e2e/avd-0.1.87/codec-probe'))
 args = parser.parse_args()
 assert re.fullmatch(r'emulator-\d+', args.serial), '只允许 AVD'
-package = 'com.ecarx.carplay'
+package = 'com.galaxy.carplay'
 args.output_dir.mkdir(parents=True, exist_ok=True)
 methods = ('JAVA_TYPE', 'JAVA_NAME', 'JAVA_ASYNC', 'NDK', 'JAVA_TUNED', 'OEM_UCAR', 'OEM_UCAR_QTI', 'OEM_HISIGHT', 'OEM_DMSDP_HDMI', 'OEM_DMSDP_CALL', 'OEM_DMSDP_BUFFER', 'OEM_LIBPAG')
 base = [args.adb, '-s', args.serial]

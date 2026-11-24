@@ -16,14 +16,14 @@ import org.robolectric.annotation.Config
 class GalaxyUpdateApkTest {
     private val a = Signature(byteArrayOf(1, 2, 3))
     private val b = Signature(byteArrayOf(4, 5, 6))
-    private val release = GalaxyUpdateManifest.parse(updateManifest().toString(), GalaxyUpdateManifest.endpoint, "com.ecarx.carplay")
+    private val release = GalaxyUpdateManifest.parse(updateManifest().toString(), GalaxyUpdateManifest.endpoint, "com.galaxy.carplay")
     private fun signing(current: Array<Signature>, history: Array<Signature> = current): SigningInfo = mock(SigningInfo::class.java).apply {
         `when`(apkContentsSigners).thenReturn(current)
         `when`(hasMultipleSigners()).thenReturn(current.size > 1)
         `when`(signingCertificateHistory).thenReturn(history)
     }
     private fun pkg(code: Int, signers: Array<Signature> = arrayOf(a)) = PackageInfo().apply {
-        packageName = "com.ecarx.carplay"; versionName = "0.1.119"; versionCode = code
+        packageName = "com.galaxy.carplay"; versionName = "0.1.119"; versionCode = code
         applicationInfo = ApplicationInfo().apply { minSdkVersion = 29 }
         signingInfo = signing(signers)
     }

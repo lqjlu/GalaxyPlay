@@ -288,7 +288,7 @@ class L7DebugOverlayService : Service() {
     companion object {
         private const val CHANNEL = "l7_debug_overlay"
         private const val NOTIFICATION_ID = 30
-        private const val ACTION_STOP = "com.ecarx.carplay.STOP_DEBUG_OVERLAY"
+        private const val ACTION_STOP = "com.galaxy.carplay.STOP_DEBUG_OVERLAY"
         @Volatile var isRunning = false
             private set
         fun start(context: Context) = runCatching { context.startForegroundService(Intent(context, L7DebugOverlayService::class.java)) }

@@ -16,7 +16,7 @@ parser.add_argument('--layout-only', action='store_true')
 args = parser.parse_args()
 assert args.serial.startswith('emulator-'), '仅允许 AVD'
 base = [args.adb, '-s', args.serial]
-package = 'com.ecarx.carplay'
+package = 'com.galaxy.carplay'
 out = Path('build/previews/debug-guide')
 out.mkdir(parents=True, exist_ok=True)
 

@@ -3,7 +3,7 @@
   "sources": [
     {
       "id": "carplay_reference",
-      "package": "com.ecarx.carplay",
+      "package": "com.galaxy.carplay",
       "manifestSha256": "1c91728a1a4d550adec52a0816b9917fe7f516208ac947026b2417c1b6736d2b"
     },
     {
@@ -63,17 +63,17 @@
     },
     {
       "id": "app_common",
-      "package": "com.ecarx.carplay",
+      "package": "com.galaxy.carplay",
       "manifestSha256": "527a2051002be1f23b67e4e7b82582bc14f4e16f557ad99f576fc3b12aa1d289"
     },
     {
       "id": "app_shared",
-      "package": "com.ecarx.carplay",
+      "package": "com.galaxy.carplay",
       "manifestSha256": "08a84399e02bf4be4fa488c7613fa198b96c8fbb192a8af6753c3326733825f5"
     },
     {
       "id": "app_mobile",
-      "package": "com.ecarx.carplay",
+      "package": "com.galaxy.carplay",
       "manifestSha256": "b3be8e81733728ff521fa72c8aa9b10073aab98933e289f3daf20306fb04d1d8"
     }
   ],
@@ -1520,7 +1520,7 @@
       "accessProtections": []
     },
     {
-      "name": "com.ecarx.carplay.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
+      "name": "com.galaxy.carplay.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
       "warnings": [],
       "requests": [
         "carplay_reference"
@@ -1531,7 +1531,7 @@
       "accessProtections": []
     },
     {
-      "name": "com.ecarx.carplay.PROVIDER_PERMISSION",
+      "name": "com.galaxy.carplay.PROVIDER_PERMISSION",
       "warnings": [],
       "requests": [],
       "definitions": [

@@ -206,7 +206,7 @@
      defaultConfig {
 -        applicationId = "com.shihab.diplay"
 -        minSdk = 25
-+        applicationId = "com.ecarx.carplay"
++        applicationId = "com.galaxy.carplay"
 +        // L7 专用应用最低支持 Android 10，实车验证以 Flyme OS / Android 11 为准。
 +        minSdk = 29
          targetSdk = 37

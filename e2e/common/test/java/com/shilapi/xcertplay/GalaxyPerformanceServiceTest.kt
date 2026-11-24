@@ -42,7 +42,7 @@ class GalaxyPerformanceServiceTest {
         val controller = Robolectric.buildService(GalaxyPerformanceService::class.java).create()
         var monitor: GalaxyPerformanceMonitor? = null
         try {
-            val intent = Intent(app, GalaxyPerformanceService::class.java).setAction("com.ecarx.carplay.PERFORMANCE_START")
+            val intent = Intent(app, GalaxyPerformanceService::class.java).setAction("com.galaxy.carplay.PERFORMANCE_START")
             controller.get().onStartCommand(intent, 0, 1)
             monitor = ReflectionHelpers.getField(controller.get(), "monitor")
             assertNotNull(monitor); assertTrue(GalaxyPerformanceState.running)

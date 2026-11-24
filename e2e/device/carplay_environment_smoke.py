@@ -14,7 +14,7 @@ parser.add_argument('--serial', default='emulator-5556')
 args = parser.parse_args()
 assert re.fullmatch(r'emulator-\d+', args.serial), '只允许模拟器'
 base = [args.adb, '-s', args.serial]
-pkg = 'com.ecarx.carplay'
+pkg = 'com.galaxy.carplay'
 out = Path('build/previews/164-carplay-environment')
 out.mkdir(parents=True, exist_ok=True)
 

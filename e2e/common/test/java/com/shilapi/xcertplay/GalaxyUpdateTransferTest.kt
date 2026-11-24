@@ -36,13 +36,13 @@ class GalaxyUpdateTransferTest {
         }
     }
     private fun manifest() = updateManifest(bytes.size, hash(bytes))
-    private fun release(json: JSONObject = manifest()) = GalaxyUpdateManifest.parse(json.toString(), base, "com.ecarx.carplay")
+    private fun release(json: JSONObject = manifest()) = GalaxyUpdateManifest.parse(json.toString(), base, "com.galaxy.carplay")
     @Test fun directDownloadUsesExactBytesAndRemovesPartialFile() {
         serve(base.path, manifest().toString().toByteArray())
         serve("/downloads/com-ecarx-carplay/v147/update.apk", bytes)
         val transfer = GalaxyUpdateTransfer(base)
         val request = GalaxyUpdateRequest()
-        val fetched = transfer.latest("com.ecarx.carplay", request)
+        val fetched = transfer.latest("com.galaxy.carplay", request)
         val file = transfer.download(fetched, directory, request) {}
         assertArrayEquals(bytes, file.readBytes())
         assertEquals(listOf(file), directory.listFiles()!!.toList())
@@ -80,17 +80,17 @@ class GalaxyUpdateTransferTest {
     }
     @Test fun badStatusAndExcessiveMetadataAreBounded() {
         serve(base.path, "not found".toByteArray(), 404)
-        failure(GalaxyUpdateFailure.NETWORK) { GalaxyUpdateTransfer(base).latest("com.ecarx.carplay", GalaxyUpdateRequest()) }
+        failure(GalaxyUpdateFailure.NETWORK) { GalaxyUpdateTransfer(base).latest("com.galaxy.carplay", GalaxyUpdateRequest()) }
         server.removeContext(base.path)
         serve(base.path, ByteArray(GalaxyUpdateManifest.MAX_METADATA_SIZE + 1) { 32 })
-        failure(GalaxyUpdateFailure.MANIFEST) { GalaxyUpdateTransfer(base).latest("com.ecarx.carplay", GalaxyUpdateRequest()) }
+        failure(GalaxyUpdateFailure.MANIFEST) { GalaxyUpdateTransfer(base).latest("com.galaxy.carplay", GalaxyUpdateRequest()) }
     }
     @Test fun crossHostRedirectIsRejectedWithoutFetchingIt() {
         server.createContext(base.path) { exchange ->
             exchange.responseHeaders.add("Location", "http://localhost:${server.address.port}/other")
             exchange.sendResponseHeaders(302, -1); exchange.close()
         }
-        failure(GalaxyUpdateFailure.NETWORK) { GalaxyUpdateTransfer(base).latest("com.ecarx.carplay", GalaxyUpdateRequest()) }
+        failure(GalaxyUpdateFailure.NETWORK) { GalaxyUpdateTransfer(base).latest("com.galaxy.carplay", GalaxyUpdateRequest()) }
     }
     @Test fun sameOriginRedirectWorks() {
         server.createContext(base.path) { exchange ->
@@ -99,7 +99,7 @@ class GalaxyUpdateTransferTest {
         }
         val moved = manifest().also { it.getJSONObject("file").put("url", "/downloads/com-ecarx-carplay/v147/update.apk") }
         serve("/latest", moved.toString().toByteArray())
-        assertEquals(147L, GalaxyUpdateTransfer(base).latest("com.ecarx.carplay", GalaxyUpdateRequest()).code)
+        assertEquals(147L, GalaxyUpdateTransfer(base).latest("com.galaxy.carplay", GalaxyUpdateRequest()).code)
     }
     private fun failure(expected: GalaxyUpdateFailure, work: () -> Unit) {
         try { work(); fail("failure was expected") }
