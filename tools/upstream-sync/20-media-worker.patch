@@ -161,7 +161,7 @@
      private val mediaChannel: Int = 0,
      private val navigationChannel: Int = 0,
      context: Context? = null,
-@@ -181,70 +52,84 @@
+@@ -181,70 +52,89 @@
      onScreenStreamActiveChanged: ((Int, Boolean) -> Unit)? = null,
      private val mediaBufferMillis: Int = MediaAudioBuffer.DEFAULT_MILLIS,
      private val onAudioDiagnostic: (String) -> Unit = {},
@@ -176,9 +176,6 @@
 -     * then follows how late the decoder releases frames ([PacingDelay]); 0 shows each as soon as it is
 -     * decoded. Only a SurfaceView honours the timestamps, so the host sets it with one.
 -     */
--    private val videoPacingDelayMillis: Int = 0,
--    /** The main screen's frame rate (the frame-rate setting), requested from its decoder as the operating rate; 0 for none. */
--    private val mainVideoFrameRate: Int = 0,
 +    onMediaAudioChanged: (Boolean) -> Unit = {},
 +    onVideoSizeChanged: ((Int, Int) -> Unit)? = null,
 +    onVideoFailure: ((VideoCodec, String) -> Unit)? = null,
@@ -189,6 +186,11 @@
 +    onVideoRecovered: (() -> Unit)? = null,
 +    private val preferredAvcDecoder: String? = null,
 +    private val performanceOptions: MediaPerformanceOptions = MediaPerformanceOptions(),
++    /** 帧节奏（平滑视频）的起始显示延迟；0 表示不排期，解码出来就上屏。 */
+     private val videoPacingDelayMillis: Int = 0,
+-    /** The main screen's frame rate (the frame-rate setting), requested from its decoder as the operating rate; 0 for none. */
++    /** 主屏帧率，用于压住排期队列的最大提前量；0 用 30fps 估算。 */
+     private val mainVideoFrameRate: Int = 0,
  ) : MediaSink {
 -    // Each downlink publishes its own reference; a mic must match that stream and sample rate.
 -    private val callEchoReferences = ConcurrentHashMap<AudioStreamId, EchoReference>()
@@ -202,6 +204,7 @@
 +    @Volatile private var videoFailure = onVideoFailure
 +    @Volatile private var mainVideoFailure: Pair<VideoCodec, String>? = null
 +    @Volatile private var videoSizeChanged = onVideoSizeChanged
++    @Volatile private var surfaceUsesTimestamps = false
 +    @Volatile private var mainVideoSize = videoWidth to videoHeight
      private val appContext = context?.applicationContext
 -    private val audioManager = appContext?.getSystemService(AudioManager::class.java)
@@ -290,7 +293,7 @@
      private val recoveryExecutor = Executors.newSingleThreadExecutor { task ->
          Thread(task, "carplay-video-recovery").apply { isDaemon = true }
      }
-@@ -261,7 +146,7 @@
+@@ -261,154 +151,46 @@
          if (!recoveryPending.compareAndSet(false, true)) return
          try {
              recoveryExecutor.execute {
@@ -299,9 +302,11 @@
                  catch (error: Exception) { Log.w("xcertplay-usb", "Video keyframe request failed", error) }
                  finally { recoveryPending.set(false) }
              }
-@@ -269,146 +154,36 @@
+         } catch (_: java.util.concurrent.RejectedExecutionException) { recoveryPending.set(false) }
      }
  
++    fun setSurfaceUsesTimestamps(uses: Boolean) { surfaceUsesTimestamps = uses }
++
      fun setSurface(type: Int, surface: Surface) {
 -        synchronized(videoOwnershipLock) {
 -            if (videoClosed) return
@@ -464,7 +469,7 @@
      }
  
      fun setScreenStreamActiveChangedListener(listener: ((Int, Boolean) -> Unit)?) {
-@@ -418,51 +193,58 @@
+@@ -418,51 +200,63 @@
          }
      }
  
@@ -523,13 +528,17 @@
 -        }
 -    }
 -
--    override fun onVideoFrame(type: Int, naluBytes: ByteArray, senderNanos: Long, arrivalNanos: Long) {
++        videoDecoder(type)?.submit(naluBytes)
++    }
++
++    /** DiPlay 新版同款入口：带上 iPhone 帧时间与到帧时刻，供帧节奏排期。 */
+     override fun onVideoFrame(type: Int, naluBytes: ByteArray, senderNanos: Long, arrivalNanos: Long) {
 -        synchronized(videoOwnershipLock) {
 -            if (videoClosed) return
 -            videoDecoder(type).submit(naluBytes, senderNanos, arrivalNanos)
 -            mirrorDecoders(type).forEach { it.submit(naluBytes) }
 -        }
-+        videoDecoder(type)?.submit(naluBytes)
++        videoDecoder(type)?.submit(naluBytes, senderNanos, arrivalNanos)
      }
  
      override fun onScreenStreamActive(type: Int, active: Boolean) {
@@ -557,7 +566,7 @@
          }
          synchronized(screenStateLock) {
              if (active) activeScreenTypes.add(type) else activeScreenTypes.remove(type)
-@@ -470,20 +252,22 @@
+@@ -470,20 +264,22 @@
          }
      }
  
@@ -589,7 +598,7 @@
          updateMediaAudio(id, false)
      }
  
-@@ -493,72 +277,48 @@
+@@ -493,72 +289,48 @@
              if (active) mediaAudioTypes.add(id) else mediaAudioTypes.remove(id)
              before to mediaAudioTypes.isNotEmpty()
          }
@@ -690,7 +699,7 @@
          }
          synchronized(screenStateLock) {
              activeScreenTypes.forEach { screenStreamActiveChanged?.invoke(it, false) }
-@@ -568,322 +328,279 @@
+@@ -568,322 +340,290 @@
          videoRecoveryHandlers.clear()
          videoDiagnosticHandlers.clear()
          recoveryExecutor.shutdownNow()
@@ -788,6 +797,9 @@
 +                },
 +                preferredAvcDecoder = preferredAvcDecoder,
 +                performanceOptions = performanceOptions,
++                // 只有主屏做帧节奏；副屏/仪表保持原来的即时上屏。
++                pacingDelayNanos = if (type == 110) videoPacingDelayMillis * 1_000_000L else 0L,
++                surfaceTimestamps = { surfaceUsesTimestamps },
 +            )
 +        }
 +    }
@@ -948,6 +960,8 @@
 +    private val createCodec: (String) -> MediaCodec = MediaCodec::createByCodecName,
 +    private val preferredAvcDecoder: String? = null,
 +    private val performanceOptions: MediaPerformanceOptions = MediaPerformanceOptions(),
++    private val pacingDelayNanos: Long = 0L,
++    private val surfaceTimestamps: () -> Boolean = { false },
  ) : Closeable {
 -    private val pacer = FramePacer()
 -    private val pacingDelay = if (pacingDelayNanos > 0) PacingDelay(pacingDelayNanos) else null
@@ -1023,19 +1037,16 @@
  
      fun configure(codec: VideoCodec, codecData: ByteArray) {
 -        queue.offer(VideoJob.Config(codec, codecData))
--    }
--
--    fun submit(nalus: ByteArray, senderNanos: Long = 0L, arrivalNanos: Long = 0L) {
++        synchronized(lifecycleLock) { if (running) queue.offer(VideoJob.Config(codec, codecData)) }
+     }
+ 
+     fun submit(nalus: ByteArray, senderNanos: Long = 0L, arrivalNanos: Long = 0L) {
 -        stats.onReceived(nalus.size)
 -        // Pacing runs on the worker, in queue order: callbacks of a replaced stream may still deliver here.
 -        queue.offer(VideoJob.Frame(nalus, senderNanos = senderNanos, arrivalNanos = arrivalNanos))
-+        synchronized(lifecycleLock) { if (running) queue.offer(VideoJob.Config(codec, codecData)) }
-+    }
-+
-+    fun submit(nalus: ByteArray) {
 +        synchronized(lifecycleLock) {
 +            if (!running) return
-+            val frame = VideoJob.Frame(nalus)
++            val frame = VideoJob.Frame(nalus, senderNanos = senderNanos, arrivalNanos = arrivalNanos)
 +            playbackWatchdog.received(frame.receivedNs)
 +            stats.onReceived(nalus.size)
 +            queue.offer(frame)
@@ -1064,11 +1075,19 @@
 -
 -    /** True once the worker has exited, so its codec is released. */
 -    val exited: Boolean get() = !thread.isAlive
--
--    /**
++        synchronized(lifecycleLock) {
++            if (!running) return
++            desiredSurface = surface
++            queue.offer(VideoJob.SurfaceChanged(surface))
++        }
++    }
+ 
+     /**
 -     * After [close], waits until [deadlineNanos] for the worker to release its codec and exit. An
 -     * interrupt does not end the wait early; it is restored before returning.
--     */
++     * SurfaceView 由系统合成器按时间戳上屏，可以直接把目标时间交给它；
++     * TextureView 只能由应用自己画，必须由解码器端压住缓冲。
+      */
 -    fun awaitExitUntil(deadlineNanos: Long): Boolean {
 -        var interrupted = false
 -        try {
@@ -1085,12 +1104,6 @@
 -
 -    fun refreshPicture() {
 -        queue.offer(VideoJob.RefreshPicture)
-+        synchronized(lifecycleLock) {
-+            if (!running) return
-+            desiredSurface = surface
-+            queue.offer(VideoJob.SurfaceChanged(surface))
-+        }
-+    }
 +
 +    fun detachSurface(surface: Surface, onDetached: () -> Unit) {
 +        val completeNow = synchronized(lifecycleLock) {
@@ -1108,6 +1121,7 @@
 -        running = false
 -        thread.interrupt()
 +        synchronized(lifecycleLock) { running = false; desiredSurface = null; thread.interrupt() }
++        runCatching { pacingScheduler.shutdownNow() }
      }
  
      private fun run() {
@@ -1214,7 +1228,7 @@
          if (
              decoder != null &&
              previous?.codec == config.codec &&
-@@ -896,10 +613,13 @@
+@@ -896,10 +636,13 @@
              return
          }
          lastConfig = config
@@ -1229,7 +1243,7 @@
          val codec = config.codec
          val codecData = config.codecData
          val mime = if (codec == VideoCodec.H265) MediaFormat.MIMETYPE_VIDEO_HEVC
-@@ -914,24 +634,45 @@
+@@ -914,24 +657,45 @@
                  pps.takeIf { it.isNotEmpty() }?.let { START_CODE + it },
              )
          }
@@ -1285,7 +1299,7 @@
              Log.i(
                  TAG,
                  "video decoder configured name=${next.name} mime=$mime size=${width}x$height",
-@@ -939,8 +680,10 @@
+@@ -939,8 +703,10 @@
          }
      }
  
@@ -1297,7 +1311,7 @@
          operatingRate = 0
      }
  
-@@ -954,116 +697,124 @@
+@@ -954,116 +720,124 @@
              csd.forEachIndexed { index, bytes -> setByteBuffer("csd-$index", ByteBuffer.wrap(bytes)) }
          }
  
@@ -1493,7 +1507,7 @@
                  Log.i(TAG, "video decoder output surface updated")
                  return
              } catch (error: Exception) {
-@@ -1074,119 +825,154 @@
+@@ -1074,119 +848,201 @@
          lastConfig?.let(::configureDecoder)
      }
  
@@ -1604,6 +1618,11 @@
 +            inputSlot.queued()
 +            inputProgress.reset()
 +            inputTiming.record(frame.receivedNs / 1000, inputNs)
++            if (pacingDelay != null && frame.senderNanos > 0L && frame.arrivalNanos > 0L) {
++                // PTS 用本地接收时刻，所以按 PTS 记住这一帧的发送端时间，出队时才能排期。
++                if (pacingMeta.size > 64) pacingMeta.clear()
++                pacingMeta[frame.receivedNs / 1000] = longArrayOf(frame.senderNanos, frame.arrivalNanos)
++            }
 +            stats.onInput(frame.receivedNs)
 +            startupWatchdog.input(inputNs)
              referenceChain.onQueued()
@@ -1666,7 +1685,46 @@
  
 -    private fun queuedSlotOf(presentationUs: Long): Int =
 -        queuedPresentationUs.indices.firstOrNull { queuedPresentationUs[it] == presentationUs } ?: -1
--
++    // 帧节奏（平滑视频，移植 DiPlay 新版）：用 iPhone 的帧时间 + 自适应显示延迟排期上屏。
++    private val pacer = FramePacer()
++    private val pacingDelay = if (pacingDelayNanos > 0) PacingDelay(pacingDelayNanos) else null
++    private val pacingMeta = HashMap<Long, LongArray>()
++    private val pacingScheduler = java.util.concurrent.ScheduledThreadPoolExecutor(1) { runnable ->
++        Thread(runnable, "carplay-video-pace").apply { isDaemon = true }
++    }.apply { removeOnCancelPolicy = true }
++    private val heldFrames = java.util.concurrent.atomic.AtomicInteger()
++    /** 最多提前 200ms 排期；实际持有帧数由 MAX_HELD_FRAMES 再兜一层。 */
++    private val maxPaceLeadNs = 200_000_000L
++
++    /** 这一帧的目标上屏时间；0 表示立刻上屏（没有排期信息或已落后）。 */
++    private fun pacingTarget(ptsUs: Long, now: Long): Long {
++        val delay = pacingDelay ?: return 0L
++        val meta = pacingMeta.remove(ptsUs) ?: return 0L
++        if (meta[0] <= 0L || meta[1] <= 0L) return 0L
++        val local = pacer.localTime(meta[0], meta[1])
++        if (local <= 0L) return 0L
++        delay.onFrame((now - local).coerceAtLeast(0L))
++        val target = local + delay.nanos
++        return if (target - now in 1..maxPaceLeadNs) target else 0L
++    }
++
++    /** 到点再交还缓冲；持有数量有上限，避免解码器输出缓冲被排期队列吃干净。 */
++    private fun holdRelease(codec: MediaCodec, index: Int, target: Long) {
++        if (heldFrames.get() >= MAX_HELD_FRAMES) { codec.releaseOutputBuffer(index, true); return }
++        heldFrames.incrementAndGet()
++        runCatching {
++            pacingScheduler.schedule({
++                try {
++                    if (running) codec.releaseOutputBuffer(index, true)
++                } catch (_: Exception) {
++                    // codec 可能已重建或释放。
++                } finally {
++                    heldFrames.decrementAndGet()
++                }
++            }, (target - System.nanoTime()).coerceAtLeast(0L), java.util.concurrent.TimeUnit.NANOSECONDS)
++        }.onFailure { heldFrames.decrementAndGet() }
++    }
+ 
      private fun drainOutput(codec: MediaCodec) {
 -        val info = MediaCodec.BufferInfo()
 +        val info = outputInfo
@@ -1711,15 +1769,17 @@
 +                    val expired = VideoFrameBudget.remainingNs(info.presentationTimeUs * 1000, now) == 0L
 +                    val render = running && !expired && outputSurface != null && outputSurface === desiredSurface
 +                    val decodeNs = inputTiming.take(info.presentationTimeUs, now)
-+                    // 已解码图像可以丢弃，不会破坏 codec 内部参考链；避免补播过期画面。
-+                    codec.releaseOutputBuffer(index, render)
++                    val targetNs = if (render) pacingTarget(info.presentationTimeUs, now) else 0L
++                    if (targetNs > now && surfaceTimestamps()) codec.releaseOutputBuffer(index, targetNs)
++                    else if (targetNs > now) holdRelease(codec, index, targetNs)
++                    else codec.releaseOutputBuffer(index, render)
 +                    if (render) {
 +                        stats.onSubmitted(info.presentationTimeUs, decodeNs); recoveryGate.onOutput(now)
 +                    } else stats.onDropped(reason = if (expired) VideoDropReason.OUTPUT_EXPIRED else VideoDropReason.NO_TARGET)
                      if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) return
                  }
                  else -> return
-@@ -1195,6 +981,14 @@
+@@ -1195,6 +1051,14 @@
      }
  
      private fun logOutputFormat(format: MediaFormat) {
@@ -1734,7 +1794,7 @@
          report("output format requested=${width}x${height} " +
              "coded=${format.intOrNull(MediaFormat.KEY_WIDTH)}x${format.intOrNull(MediaFormat.KEY_HEIGHT)} " +
              "crop=${format.intOrNull("crop-left")},${format.intOrNull("crop-top")}," +
-@@ -1214,20 +1008,19 @@
+@@ -1214,20 +1078,19 @@
          )
      }
  
@@ -1762,7 +1822,7 @@
              try {
                  codec.stop()
              } catch (_: Exception) {
-@@ -1245,16 +1038,6 @@
+@@ -1245,17 +1108,9 @@
          const val TAG = "xcertplay-usb"
          const val MAX_INPUT_SIZE = 8 * 1024 * 1024
          const val INPUT_TIMEOUT_US = 10_000L
@@ -1777,9 +1837,12 @@
 -        // Frames before a pause that wait for it: the decoder holds about two, sometimes three.
 -        const val PAUSE_HELD_FRAMES = 3
          val START_CODE = byteArrayOf(0x00, 0x00, 0x00, 0x01)
++        // 帧节奏：最多同时持有 3 帧解码输出，避免把 codec 输出缓冲吃干净。
++        const val MAX_HELD_FRAMES = 3
      }
  }
-@@ -1277,40 +1060,60 @@
+ 
+@@ -1277,40 +1132,60 @@
      private val audioFocusEnabled: Boolean,
      private val mediaChannel: Int,
      private val navigationChannel: Int,
@@ -1853,7 +1916,7 @@
      private var firstPcmLogged = false
      private val packetsReceived = AtomicInteger()
      private val packetsDropped = AtomicInteger()
-@@ -1326,20 +1131,55 @@
+@@ -1326,20 +1201,55 @@
      private var lastPlaybackHeadFrames: Long? = null
      private var maxWriteMs = 0L
      private var statsWindowStartNs = 0L
@@ -1910,7 +1973,7 @@
          thread.start()
      }
  
-@@ -1348,9 +1189,21 @@
+@@ -1348,9 +1258,21 @@
              packetsReceived.incrementAndGet()
              val now = System.nanoTime()
              val previous = lastArrivalNs.getAndSet(now)
@@ -1935,7 +1998,7 @@
              if (started) packetsDropped.incrementAndGet()
              if (started && !droppedPacketsLogged) {
                  droppedPacketsLogged = true
-@@ -1361,51 +1214,97 @@
+@@ -1361,51 +1283,97 @@
      }
  
      override fun close() {
@@ -2045,7 +2108,7 @@
      }
  
      private fun configureCodec(mime: String) {
-@@ -1432,13 +1331,20 @@
+@@ -1432,13 +1400,20 @@
              )
          }
          codec = try {
@@ -2070,7 +2133,7 @@
                  runCatching {
                      val name = it.name
                      Log.i(TAG, "audio decoder configured mime=$mime name=$name")
-@@ -1446,6 +1352,16 @@
+@@ -1446,6 +1421,16 @@
                  }
              }
          } catch (error: Exception) {
@@ -2087,7 +2150,7 @@
              Log.e(TAG, "audio decoder configuration failed mime=$mime", error)
              reportFailure(error)
              null
-@@ -1460,9 +1376,8 @@
+@@ -1460,9 +1445,8 @@
          val minBuffer = AudioTrack.getMinBufferSize(format.sampleRate, channelMask, encoding)
          if (minBuffer <= 0) {
              Log.e(TAG, "AudioTrack buffer size unavailable rate=${format.sampleRate} channels=${format.channels}")
@@ -2099,7 +2162,7 @@
              return
          }
          val selection = mappedSelection()
-@@ -1470,15 +1385,15 @@
+@@ -1470,15 +1454,15 @@
          val streamOverride = channelOverride(selection.channel)
          var attributes = audioAttributesFor(selection, streamOverride)
          trackAttributes = attributes
@@ -2120,7 +2183,7 @@
              built = AudioTrack.Builder()
                  .setAudioAttributes(attributes)
                  .setAudioFormat(pcmFormat(encoding, channelMask))
-@@ -1512,19 +1427,19 @@
+@@ -1512,19 +1496,19 @@
          track = built
          diagnosticStage = "track-attributes"
          trackAttributes = audioTrackAttributesForFocus(built, attributes)
@@ -2147,7 +2210,7 @@
          Log.i(
              TAG,
              "audio track prepared type=${format.payloadType} audioType=${format.audioType} " +
-@@ -1537,19 +1453,21 @@
+@@ -1537,19 +1521,21 @@
              TAG,
              "audio route type=${format.payloadType} audioType=${format.audioType} " +
                  "mode=${if (advancedAudioChannelMapping) AudioChannelMappingMode.AUTOMOTIVE_BUS else AudioChannelMappingMode.MOBILE_COMPATIBLE} " +
@@ -2174,7 +2237,7 @@
  
      private fun audioAttributesFor(
          selection: AudioChannelSelection,
-@@ -1565,13 +1483,17 @@
+@@ -1565,13 +1551,17 @@
                  Log.w(TAG, "legacy audio stream $streamOverride rejected; keeping usage routing", error)
              }
          }
@@ -2193,7 +2256,7 @@
          val mode = if (advancedAudioChannelMapping) {
              AudioChannelMappingMode.AUTOMOTIVE_BUS
          } else {
-@@ -1585,20 +1507,17 @@
+@@ -1585,20 +1575,17 @@
      }
  
      private fun audioAttributesFor(selection: AudioChannelSelection): AudioAttributes =
@@ -2218,7 +2281,7 @@
              return
          }
          track?.let { audioFocusCoordinator.acquire(it, channel, attributes) }
-@@ -1639,12 +1558,8 @@
+@@ -1639,12 +1626,8 @@
      private fun usageFor(channel: AudioChannel): Int = when (channel) {
          AudioChannel.MEDIA -> AudioAttributes.USAGE_MEDIA
          AudioChannel.PHONE -> AudioAttributes.USAGE_VOICE_COMMUNICATION
@@ -2233,7 +2296,7 @@
          AudioChannel.NAVIGATION -> AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE
      }
  
-@@ -1684,7 +1599,7 @@
+@@ -1684,7 +1667,7 @@
          val rtp = packet.rtp
          val timestampUs = sampleTimestampUs(packet.sample)
          when (format.codec) {
@@ -2242,7 +2305,7 @@
              AudioCodecKind.AAC_LC -> {
                  val accessUnit = rtp.copyOfRange(12, rtp.size)
                  if (accessUnit.isNotEmpty()) {
-@@ -1714,9 +1629,26 @@
+@@ -1714,9 +1697,26 @@
                      }
                      return
                  }
@@ -2272,7 +2335,7 @@
      }
  
      private fun sampleTimestampUs(sample: Int): Long =
-@@ -1725,7 +1657,10 @@
+@@ -1725,7 +1725,10 @@
      private fun feedCodec(payload: ByteArray, presentationTimeUs: Long) {
          val codec = codec ?: run { decoderUnavailablePackets++; return }
          diagnosticStage = "decoder-input"
@@ -2284,7 +2347,7 @@
          if (index < 0) {
              inputDropped++
              if (inputDropped == 1) {
-@@ -1759,14 +1694,14 @@
+@@ -1759,14 +1762,14 @@
  
      private fun drainCodec(codec: MediaCodec) {
          diagnosticStage = "decoder-output"
@@ -2301,7 +2364,7 @@
                      if (decoderOutputReports < 4) runCatching {
                          val outputFormat = codec.outputFormat
                          val metadata = "rate=${outputFormat.intOrNull(MediaFormat.KEY_SAMPLE_RATE)} " +
-@@ -1792,17 +1727,22 @@
+@@ -1792,17 +1795,22 @@
                              )
                          }
                      }
@@ -2334,7 +2397,7 @@
                      if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) return
                  }
                  else -> return
-@@ -1820,21 +1760,22 @@
+@@ -1820,17 +1828,17 @@
                  "audio first PCM type=${format.payloadType} bytes=$length",
              )
          }
@@ -2354,13 +2417,7 @@
              }
              val writeStarted = System.nanoTime()
              diagnosticStage = "track-write"
--            val count = track.write(data, offset + written, writeLength, AudioTrack.WRITE_BLOCKING)
-+            val count = track.write(data, offset + written, writeLength,
-+                if (mappedChannel == AudioChannel.MEDIA) AudioTrack.WRITE_NON_BLOCKING else AudioTrack.WRITE_BLOCKING)
-             maxWriteMs = maxOf(maxWriteMs, (System.nanoTime() - writeStarted) / 1_000_000L)
-             if (count < 0) {
-                 writeErrorsThisWindow++
-@@ -1843,6 +1784,7 @@
+@@ -1843,6 +1851,7 @@
              }
              if (count == 0) {
                  zeroWritesThisWindow++
@@ -2368,7 +2425,7 @@
                  break
              }
              if (count < writeLength) partialWritesThisWindow++
-@@ -1859,14 +1801,6 @@
+@@ -1859,14 +1868,6 @@
                      Log.i(TAG, "audio playback started type=${format.payloadType}")
                  }
              }
@@ -2383,7 +2440,7 @@
          }
      }
  
-@@ -1875,26 +1809,36 @@
+@@ -1875,26 +1876,36 @@
          underrunsAtPlaybackStart = track.underrunCount
          track.play()
          playbackStarted = true
@@ -2428,7 +2485,7 @@
              System.nanoTime() - lastPcmWriteNs >= BUFFER_TAIL_WAIT_NS) {
              startPlayback(track)
          }
-@@ -1905,7 +1857,11 @@
+@@ -1905,7 +1916,11 @@
          val now = System.nanoTime()
          if (statsWindowStartNs == 0L) statsWindowStartNs = now
          if (!force && now - statsWindowStartNs < STATS_WINDOW_NS) return
@@ -2440,7 +2497,7 @@
          val lastRx = lastArrivalNs.get()
          val currentTrack = track
          val playbackHeadFrames = currentTrack?.playbackHeadPosition
-@@ -1919,7 +1875,7 @@
+@@ -1919,7 +1934,7 @@
          val line = "audio stats audioType=${format.audioType} channel=$mappedChannel " +
              "routeType=${currentTrack?.routedDevice?.type ?: -1} codec=${format.codec} " +
              "trackState=${currentTrack?.state ?: -1} playState=${currentTrack?.playState ?: -1} " +
@@ -2449,7 +2506,7 @@
              "trackBufferFrames=${currentTrack?.bufferSizeInFrames ?: -1} " +
              "rx=${packetsReceived.getAndSet(0)} " +
              "dropped=${packetsDropped.getAndSet(0)} underruns=+${underruns - statsLastUnderruns} queue=${queue.size} " +
-@@ -1930,11 +1886,18 @@
+@@ -1930,11 +1945,18 @@
              "estimatedQueuedFrames=${queuedFrames ?: -1} writeErrors=$writeErrorsThisWindow " +
              "lastWriteError=${lastWriteErrorCode ?: "none"} zeroWrites=$zeroWritesThisWindow " +
              "partialWrites=$partialWritesThisWindow " +
@@ -2470,7 +2527,7 @@
              val decoderLine = "Audio: decoder stats audioType=${format.audioType} codec=${format.codec} " +
                  "inputQueuedTotal=$inputQueued inputDroppedTotal=$inputDropped " +
                  "shortOpusPacketsTotal=$shortOpusPackets decoderUnavailablePacketsTotal=$decoderUnavailablePackets " +
-@@ -1981,7 +1944,10 @@
+@@ -1981,7 +2003,10 @@
  
      @Synchronized
      private fun release() {
@@ -2482,7 +2539,7 @@
          val codec = codec
          this.codec = null
          if (codec != null) {
-@@ -2015,12 +1981,13 @@
+@@ -2015,12 +2040,13 @@
                  // Best effort.
              }
          }
@@ -2735,68 +2792,6 @@
 -        const val NOT_PLAYING = Long.MIN_VALUE
 -    }
 -}
---- a/shared/src/main/java/com/shilapi/xcertplay/media/FramePacer.kt
-+++ /dev/null
-@@ -1,59 +0,0 @@
--package com.shilapi.xcertplay.media
--
--/**
-- * Turns the iPhone's per-frame time into a local time on System.nanoTime, so frames can be shown at an
-- * even pace instead of whenever the link and the decoder hand them over. The decoder adds the display
-- * delay ([PacingDelay]) on top.
-- *
-- * The offset between the iPhone's clock and System.nanoTime is a low percentile of
-- * (arrival - sender time) over recent frames: the fastest frames show the link's base delay, and late
-- * frames are absorbed by the display delay added on top. For the first [refreshEvery] frames the offset
-- * follows that percentile at once, so a slow first frame (usually a keyframe) does not set it. After
-- * that it moves at most [slewPerSecond] of the elapsed time, so a fast sample leaving the window does
-- * not shift every later frame at once. It re-anchors at once when the base delay grows by more than
-- * [resetNanos] or shrinks by more than [maxEarlyNanos], and a frame's local time is never more than
-- * [maxEarlyNanos] after it arrived.
-- */
--internal class FramePacer(
--    private val window: Int = 240,
--    private val percentile: Int = 5,
--    private val refreshEvery: Int = 30,
--    private val slewPerSecond: Double = 0.002,
--    private val resetNanos: Long = 500_000_000L,
--    private val maxEarlyNanos: Long = 100_000_000L,
--) {
--    private val residuals = ArrayDeque<Long>()
--    private var frames = 0
--    private var candidate = 0L
--    private var offset = Long.MIN_VALUE
--    private var lastArrivalNanos = 0L
--
--    /**
--     * The local time of a frame stamped [senderNanos] that arrived at [arrivalNanos]: its sender time on
--     * System.nanoTime plus the link's base delay. 0 when that is implausible (far behind or ahead of its
--     * arrival), so the frame is shown as soon as it is decoded.
--     */
--    fun localTime(senderNanos: Long, arrivalNanos: Long): Long {
--        residuals.addLast(arrivalNanos - senderNanos)
--        if (residuals.size > window) residuals.removeFirst()
--        val warmingUp = frames < refreshEvery
--        if (warmingUp || frames % refreshEvery == 0) {
--            val sorted = residuals.toLongArray().also { it.sort() }
--            candidate = sorted[(sorted.size - 1) * percentile / 100]
--        }
--        frames++
--        if (offset == Long.MIN_VALUE || warmingUp || candidate - offset > resetNanos || offset - candidate > maxEarlyNanos) {
--            offset = candidate
--        } else {
--            val step = ((arrivalNanos - lastArrivalNanos).coerceAtLeast(0) * slewPerSecond).toLong()
--            offset += (candidate - offset).coerceIn(-step, step)
--        }
--        lastArrivalNanos = arrivalNanos
--        val local = senderNanos + offset
--        return if (local - arrivalNanos in -ONE_SECOND..maxEarlyNanos) local else 0L
--    }
--
--    private companion object {
--        const val ONE_SECOND = 1_000_000_000L
--    }
--}
 --- a/shared/src/main/java/com/shilapi/xcertplay/media/LegacyAudioFallback.kt
 +++ b/shared/src/main/java/com/shilapi/xcertplay/media/LegacyAudioFallback.kt
 @@ -1,7 +1,7 @@
@@ -2808,6 +2803,35 @@
      fun <T> build(
          createLegacy: () -> T,
          isInitialized: (T) -> Boolean,
+--- a/shared/src/main/java/com/shilapi/xcertplay/media/MediaAudioBuffer.kt
++++ b/shared/src/main/java/com/shilapi/xcertplay/media/MediaAudioBuffer.kt
+@@ -4,16 +4,25 @@
+  * Jitter buffer for streams mapped to the media channel. Wireless CarPlay delivers audio over the same Wi-Fi link as
+  * video; radio gaps of several hundred milliseconds are normal, so music needs a buffer that
+  * outlasts them. Calls, Siri and navigation prompts keep the small low-latency buffer.
++ * Wireless and wired USB keep separate settings. Wireless offers the classic presets that outlast Wi-Fi gaps.
++ * Wired USB has no radio gaps, so it also offers short presets that let music start and pause sooner.
++ * The device minimum AudioTrack size can still make the real buffer longer than a short preset.
+  */
+ object MediaAudioBuffer {
+     const val DEFAULT_MILLIS = 300
+-    val presets = listOf(DEFAULT_MILLIS, 500, 1000)
++    const val MOST_STABLE_MILLIS = 1000
++    val wirelessPresets = listOf(DEFAULT_MILLIS, 500, MOST_STABLE_MILLIS)
++    val wiredPresets = listOf(50, 100, 150, 200) + (DEFAULT_MILLIS..MOST_STABLE_MILLIS step 100)
++    /** Every delay a session can use; [plan] accepts any of them. */
++    val presets = (wiredPresets + wirelessPresets).distinct().sorted()
+ 
+     private const val HEADROOM_MILLIS = 200 // room above the start level so bursts after a gap fit
+     private const val MIN_TRACK_BUFFER_BYTES = 16 * 1024
+     private const val MIN_START_BUFFER_BYTES = 4 * 1024
+ 
+     fun sanitize(millis: Int): Int = millis.takeIf { it in presets } ?: DEFAULT_MILLIS
++    fun sanitizeWireless(millis: Int): Int = millis.takeIf { it in wirelessPresets } ?: DEFAULT_MILLIS
++    fun sanitizeWired(millis: Int): Int = millis.takeIf { it in wiredPresets } ?: DEFAULT_MILLIS
+ 
+     data class Plan(val trackBufferBytes: Int, val startBytes: Int)
+ 
 --- a/shared/src/main/java/com/shilapi/xcertplay/media/MediaCodecStartup.kt
 +++ b/shared/src/main/java/com/shilapi/xcertplay/media/MediaCodecStartup.kt
 @@ -1,7 +1,20 @@
@@ -3627,56 +3651,6 @@
          val codec = codec ?: return
          try {
              codec.stop()
---- a/shared/src/main/java/com/shilapi/xcertplay/media/PacingDelay.kt
-+++ /dev/null
-@@ -1,47 +0,0 @@
--package com.shilapi.xcertplay.media
--
--/**
-- * Smooth video's display delay over a frame's local time ([FramePacer.localTime]).
-- *
-- * For each frame the decoder releases, the delay it needed is how long after its local time it came out.
-- * The delay follows the [percentile] of the last [window] such needs plus [marginNanos], so about that
-- * share of frames is ready before its display time; the rest are shown at once. The margin is a refresh
-- * plus 4 ms because SurfaceFlinger takes a buffer about one refresh before the vsync it is shown at: on
-- * my Tang, frames released less than about 16 ms before that vsync missed it. It starts at
-- * [initialNanos] and holds it until [refreshEvery] needs are known. A changed goal is approached by at
-- * most [risePerFrame] or [fallPerFrame] per frame, so a few milliseconds move a frame by at most one
-- * refresh instead of shifting every later frame at once. It rises faster than it falls: frames that miss
-- * their time are already shown unevenly.
-- */
--internal class PacingDelay(
--    initialNanos: Long,
--    private val minNanos: Long = 30_000_000L,
--    private val maxNanos: Long = 200_000_000L,
--    private val window: Int = 120,
--    private val percentile: Int = 90,
--    private val refreshEvery: Int = 15,
--    private val marginNanos: Long = 20_000_000L,
--    private val risePerFrame: Long = 1_000_000L,
--    private val fallPerFrame: Long = 500_000L,
--) {
--    private val needs = LongArray(window)
--    private var count = 0
--    private var next = 0
--    private var frames = 0
--
--    var nanos: Long = initialNanos.coerceIn(minNanos, maxNanos)
--        private set
--    private var goal = nanos
--
--    /** Records that a frame came out of the decoder [neededNanos] after its local time. */
--    fun onFrame(neededNanos: Long) {
--        needs[next] = neededNanos.coerceIn(0L, maxNanos)
--        next = (next + 1) % window
--        if (count < window) count++
--        if (++frames % refreshEvery == 0) {
--            val sorted = needs.copyOf(count).also { it.sort() }
--            goal = (sorted[(count - 1) * percentile / 100] + marginNanos).coerceIn(minNanos, maxNanos)
--        }
--        nanos += (goal - nanos).coerceIn(-fallPerFrame, risePerFrame)
--    }
--}
 --- a/shared/src/main/java/com/shilapi/xcertplay/media/SpeexEchoCanceller.kt
 +++ /dev/null
 @@ -1,71 +0,0 @@
@@ -3753,7 +3727,7 @@
 -}
 --- a/shared/src/main/java/com/shilapi/xcertplay/media/VideoDecodeQueue.kt
 +++ b/shared/src/main/java/com/shilapi/xcertplay/media/VideoDecodeQueue.kt
-@@ -2,24 +2,18 @@
+@@ -2,24 +2,24 @@
  
  import android.view.Surface
  import com.shilapi.xcertplay.airplay.VideoCodec
@@ -3765,19 +3739,19 @@
  
  internal sealed interface VideoJob {
      data class Config(val codec: VideoCodec, val codecData: ByteArray) : VideoJob
--    data class Frame(
--        val nalus: ByteArray,
--        val receivedNs: Long = System.nanoTime(),
+     data class Frame(
+         val nalus: ByteArray,
+         val receivedNs: Long = System.nanoTime(),
 -        /** The iPhone's frame time and when the frame arrived (System.nanoTime), 0 when unknown. */
--        val senderNanos: Long = 0L,
--        val arrivalNanos: Long = 0L,
--    ) : VideoJob
++        /** iPhone 的帧时间与到帧时刻（System.nanoTime）；未知时为 0，用于帧节奏排期。 */
+         val senderNanos: Long = 0L,
+         val arrivalNanos: Long = 0L,
+     ) : VideoJob
 -    data class SurfaceChanged(val surface: Surface?) : VideoJob
 -    /** Stop rendering to a surface that is going away; completes [request] once the codec has let go. */
 -    data class DetachSurface(val request: SurfaceDetachRequest) : VideoJob
 -    /** Ask the iPhone for a keyframe, so a surface that just came back gets a picture without waiting for motion. */
 -    data object RefreshPicture : VideoJob
-+    data class Frame(val nalus: ByteArray, val receivedNs: Long = System.nanoTime()) : VideoJob
 +    // 完成信号只在 worker 解除旧目标后调用，宿主据此释放 Surface。
 +    data class SurfaceChanged(val surface: Surface?, val onApplied: () -> Unit = {}) : VideoJob
      data object Resync : VideoJob
@@ -3785,7 +3759,7 @@
  }
  
  /** Do not resume dependent pictures after losing a reference frame. */
-@@ -27,40 +21,78 @@
+@@ -27,40 +27,78 @@
      var needsKeyFrame = true
          private set
      fun reset() { needsKeyFrame = true }
@@ -3880,7 +3854,7 @@
  }
  
  /** Drain output while waiting for input: full output buffers can otherwise starve input forever. */
-@@ -70,14 +102,15 @@
+@@ -70,14 +108,15 @@
          drain: () -> Unit,
          dequeue: () -> Int,
          nanoTime: () -> Long = System::nanoTime,

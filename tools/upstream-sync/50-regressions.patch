@@ -2695,6 +2695,26 @@
              ),
              status.acceptUpdate(update {
                  group(1) {
+--- a/e2e/shared/test/java/com/shilapi/xcertplay/media/MediaAudioBufferTest.kt
++++ b/e2e/shared/test/java/com/shilapi/xcertplay/media/MediaAudioBufferTest.kt
+@@ -4,6 +4,17 @@
+ import org.junit.Test
+ 
+ class MediaAudioBufferTest {
++    @Test
++    fun `presets match the DiPlay upstream contract`() {
++        assertEquals(300, MediaAudioBuffer.DEFAULT_MILLIS)
++        assertEquals(1000, MediaAudioBuffer.MOST_STABLE_MILLIS)
++        assertEquals(listOf(300, 500, 1000), MediaAudioBuffer.wirelessPresets)
++        assertEquals(listOf(50, 100, 150, 200, 300, 400, 500, 600, 700, 800, 900, 1000),
++            MediaAudioBuffer.wiredPresets)
++        assertEquals(MediaAudioBuffer.DEFAULT_MILLIS, MediaAudioBuffer.sanitizeWireless(50))
++        assertEquals(50, MediaAudioBuffer.sanitizeWired(50))
++    }
++
+     @Test
+     fun `music buffers the chosen delay plus headroom`() {
+         // 48 kHz stereo 16-bit = 192 000 bytes/s.
 --- a/e2e/shared/test/java/com/shilapi/xcertplay/media/MediaCodecStartupTest.kt
 +++ b/e2e/shared/test/java/com/shilapi/xcertplay/media/MediaCodecStartupTest.kt
 @@ -6,6 +6,28 @@

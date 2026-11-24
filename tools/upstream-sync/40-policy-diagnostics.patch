@@ -54,7 +54,7 @@
  import com.shilapi.xcertplay.airplay.CarPlayUiScale
  import com.shilapi.xcertplay.airplay.AirPlayIdentity
  import com.shilapi.xcertplay.airplay.PairingStore
-@@ -16,41 +17,35 @@
+@@ -16,41 +17,37 @@
  import com.shilapi.xcertplay.orchestration.ManualHotspotSecurity
  import com.shilapi.xcertplay.orchestration.MfiTarget
  import com.shilapi.xcertplay.orchestration.WirelessHotspotMode
@@ -90,6 +90,8 @@
      private const val KEY_DISPLAY_SCALE_TENTHS = "display_scale_tenths"
      private const val KEY_UI_SCALE_PERCENT = "ui_scale_percent"
      private const val KEY_HEVC_ENABLED = "hevc_enabled"
++    /** 平滑视频（DiPlay 同名键）：按 iPhone 帧时间排期上屏，默认关闭，与 DiPlay 默认一致。 */
++    private const val KEY_SMOOTH_VIDEO = "smooth_video"
      private const val KEY_HEVC_SOFTWARE_DECODER = "hevc_software_decoder"
      private const val KEY_ADVANCED_AUDIO_CHANNEL_MAPPING = "advanced_audio_channel_mapping"
      private const val KEY_AUDIO_FOCUS_ENABLED = "audio_focus_enabled"
@@ -103,7 +105,7 @@
      private const val KEY_MANUAL_HOTSPOT_SSID = "manual_hotspot_ssid"
      private const val KEY_MANUAL_HOTSPOT_PASSPHRASE = "manual_hotspot_passphrase"
      private const val KEY_MANUAL_HOTSPOT_BAND = "manual_hotspot_band"
-@@ -60,18 +55,11 @@
+@@ -60,18 +57,11 @@
      private const val KEY_MANUFACTURER = "manufacturer"
      private const val KEY_MODEL = "model"
      private const val KEY_OEM_LABEL = "oem_label"
@@ -122,7 +124,7 @@
      private const val KEY_CLUSTER_MAP = "cluster_map_enabled"
      private const val KEY_ADB_CLUSTER_ACTIVITY = "adb_cluster_activity_enabled"
      private const val KEY_CENTER_MAP_OVERLAY = "center_map_overlay"
-@@ -81,15 +69,6 @@
+@@ -81,15 +71,6 @@
      private const val KEY_CLUSTER_CONTENT = "cluster_content"
      private const val KEY_CLUSTER_MARKER_X = "cluster_marker_horizontal_step"
      private const val KEY_CLUSTER_MARKER_Y = "cluster_marker_vertical_step"
@@ -138,7 +140,7 @@
      private const val KEY_WIDTH_PHYSICAL_MM = "display_width_physical_mm"
      private const val KEY_PHYSICAL_SIZE_BASIS = "display_physical_size_basis"
      private const val KEY_MAX_DETECTED_WIDTH = "display_max_detected_width"
-@@ -110,7 +89,7 @@
+@@ -110,7 +91,7 @@
  
      const val DEFAULT_MANUFACTURER = "DiPlay"
      const val DEFAULT_MODEL = "DiPlay"
@@ -147,7 +149,23 @@
      const val DEFAULT_MFI_I2C_PATH = "/dev/i2c-1"
  
      fun loadAmbientDelaySeconds(context: Context): Int =
-@@ -157,14 +136,14 @@
+@@ -120,6 +101,15 @@
+     fun saveAmbientDelaySeconds(context: Context, seconds: Int) {
+         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+             .putInt("ambient_delay_seconds", seconds.coerceIn(0, 60)).apply()
++    }
++
++    /** 平滑视频：开启后主画面改用 SurfaceView，按 iPhone 帧时间 + 自适应延迟上屏。 */
++    fun loadSmoothVideo(context: Context): Boolean =
++        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_SMOOTH_VIDEO, false)
++
++    fun saveSmoothVideo(context: Context, enabled: Boolean) {
++        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
++            .putBoolean(KEY_SMOOTH_VIDEO, enabled).apply()
+     }
+ 
+     fun loadDisplayScalePercent(context: Context): Int =
+@@ -157,14 +147,14 @@
          context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
              .getBoolean(KEY_HEVC_ENABLED, false)
  
@@ -164,7 +182,7 @@
      }
  
      fun saveHevcEnabled(context: Context, enabled: Boolean) {
-@@ -183,9 +162,7 @@
+@@ -183,9 +173,7 @@
              .apply()
      }
  
@@ -175,7 +193,7 @@
  
      fun saveAdvancedAudioChannelMapping(context: Context, enabled: Boolean) {
          context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-@@ -203,9 +180,7 @@
+@@ -203,9 +191,7 @@
              .apply()
      }
  
@@ -186,7 +204,7 @@
  
      fun saveAudioFocusEnabled(context: Context, enabled: Boolean) {
          context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-@@ -213,39 +188,35 @@
+@@ -213,39 +199,35 @@
              .apply()
      }
  
@@ -255,7 +273,7 @@
  
      fun loadWirelessEnabled(context: Context): Boolean =
          context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-@@ -269,6 +240,9 @@
+@@ -269,6 +251,9 @@
              .apply()
      }
  
@@ -265,7 +283,7 @@
      fun loadMfiI2cPath(context: Context): String =
          context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
              .getString(KEY_MFI_I2C_PATH, null)
-@@ -303,22 +277,9 @@
+@@ -303,22 +288,9 @@
              .apply()
      }
  
@@ -291,7 +309,7 @@
  
      fun loadWifiP2pPreferredChannel(context: Context): Int = runCatching {
          context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-@@ -350,6 +311,9 @@
+@@ -350,6 +322,9 @@
          context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
              .getString(KEY_MANUAL_HOTSPOT_SSID, null)
              .orEmpty()
@@ -301,7 +319,7 @@
  
      fun saveManualHotspotSsid(context: Context, ssid: String) {
          context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-@@ -463,16 +427,10 @@
+@@ -463,16 +438,10 @@
              .apply()
      }
  
@@ -320,7 +338,7 @@
      }
  
      fun loadAmbientLightThreshold(context: Context): AmbientLightThreshold = AmbientLightThreshold.fromStored(
-@@ -483,15 +441,6 @@
+@@ -483,15 +452,6 @@
      fun saveAmbientLightThreshold(context: Context, threshold: AmbientLightThreshold) {
          context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
              .putInt(KEY_AMBIENT_LUX_THRESHOLD, threshold.lux).apply()
@@ -336,7 +354,7 @@
      }
  
      fun loadCarPlayNightMode(context: Context): CarPlayNightMode = CarPlayNightMode.fromKey(
-@@ -503,24 +452,6 @@
+@@ -503,24 +463,6 @@
              .putString(KEY_CARPLAY_NIGHT_MODE, mode.key).apply()
      }
  
@@ -361,7 +379,7 @@
      fun loadFps(context: Context): Int = AirPlayDisplaySettings.sanitizeFps(
          context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
              .getInt(KEY_FPS, 30),
-@@ -539,40 +470,9 @@
+@@ -539,40 +481,9 @@
          context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(KEY_MAIN_BUFFERED_AUDIO, enabled).apply()
      }
  
@@ -402,7 +420,7 @@
      }
  
      fun saveFps(context: Context, fps: Int) {
-@@ -628,8 +528,7 @@
+@@ -628,8 +539,7 @@
              .apply()
      }
  
@@ -412,7 +430,7 @@
  
      fun loadAdbClusterEnabled(context: Context): Boolean = loadClusterMapEnabled(context) &&
          context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_ADB_CLUSTER_ACTIVITY, false)
-@@ -818,36 +717,6 @@
+@@ -818,36 +728,6 @@
      fun saveClusterMarkerVerticalStep(context: Context, step: Int) {
          context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
              .putInt(KEY_CLUSTER_MARKER_Y, step.coerceIn(CarPlayClusterDisplay.verticalSteps)).apply()
@@ -449,7 +467,7 @@
      }
  
      // Cluster mapping has its own key; never reuse the main display mapping at the same resolution.
-@@ -949,14 +818,11 @@
+@@ -949,14 +829,11 @@
          File(context.filesDir, CUSTOM_ICON_FILE).takeIf { it.isFile }
  
      fun saveCustomAirPlayIcon(context: Context, encodedImage: ByteArray) {
@@ -466,7 +484,7 @@
      }
  
      fun loadIdentity(context: Context): AirPlayIdentity {
-@@ -995,61 +861,15 @@
+@@ -995,61 +872,15 @@
              .apply()
      }
  
@@ -702,7 +720,7 @@
  
      private const val PREFS = "diplay"
      private const val KEY_LANGUAGE = "app_language"
-@@ -32,19 +25,7 @@
+@@ -32,22 +25,10 @@
      fun preference(context: Context): String {
          if (Build.VERSION.SDK_INT >= 33) {
              val locales = context.getSystemService(LocaleManager::class.java).applicationLocales
@@ -719,11 +737,15 @@
 -                    SIMPLIFIED_CHINESE
 -                }
 -            }
-+            return if (locales.isEmpty) SYSTEM else locales[0].language.takeIf { it in ALL } ?: SYSTEM
++            return if (locales.isEmpty) SIMPLIFIED_CHINESE else locales[0].language.takeIf { it in ALL } ?: SYSTEM
          }
          return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-             .getString(KEY_LANGUAGE, SYSTEM)?.takeIf { it in ALL } ?: SYSTEM
-@@ -63,15 +44,18 @@
+-            .getString(KEY_LANGUAGE, SYSTEM)?.takeIf { it in ALL } ?: SYSTEM
++            .getString(KEY_LANGUAGE, SIMPLIFIED_CHINESE)?.takeIf { it in ALL } ?: SYSTEM
+     }
+ 
+     fun save(context: Context, language: String) {
+@@ -63,52 +44,47 @@
          }
      }
  
@@ -738,15 +760,19 @@
 +            if (removedLanguage) manager.applicationLocales = LocaleList.getEmptyLocaleList()
              if (!prefs.getBoolean(KEY_MIGRATED, false)) {
 -                val manager = context.getSystemService(LocaleManager::class.java)
-                 val previous = locale(prefs.getString(KEY_LANGUAGE, SYSTEM) ?: SYSTEM)
+-                val previous = locale(prefs.getString(KEY_LANGUAGE, SYSTEM) ?: SYSTEM)
 -                // Never overwrite a language already chosen through Android Settings.
 -                if (manager.applicationLocales.isEmpty && previous != null) {
++                val previous = locale(prefs.getString(KEY_LANGUAGE, SIMPLIFIED_CHINESE) ?: SIMPLIFIED_CHINESE)
 +                // 已有系统选择优先，清理旧语言时也不恢复更早的应用偏好。
 +                if (!removedLanguage && manager.applicationLocales.isEmpty && previous != null) {
                      manager.applicationLocales = LocaleList(previous)
                  }
                  prefs.edit().putBoolean(KEY_MIGRATED, true).remove(KEY_LANGUAGE).apply()
-@@ -79,36 +63,25 @@
+             }
++            if (manager.applicationLocales.isEmpty) {
++                manager.applicationLocales = LocaleList(locale(SIMPLIFIED_CHINESE))
++            }
              return context
          }
          val locale = locale(preference(context)) ?: return context
@@ -794,7 +820,7 @@
              .setTitle(R.string.language_app_language)
              .setSingleChoiceItems(ALL.map { displayName(activity, it) }.toTypedArray(), selected) { _, index ->
                  selected = index
-@@ -117,7 +90,7 @@
+@@ -117,7 +93,7 @@
                  val next = ALL[selected]
                  if (next != preference(activity)) {
                      save(activity, next)
@@ -803,7 +829,7 @@
                      if (Build.VERSION.SDK_INT < 33) activity.recreate()
                  }
              }
-@@ -125,27 +98,17 @@
+@@ -125,27 +101,17 @@
              .show()
      }
  
@@ -6334,6 +6360,75 @@
 -        }
 -    }
 -}
+--- /dev/null
++++ b/common/src/main/java/com/shilapi/xcertplay/VpnPreConsent.kt
+@@ -0,0 +1,66 @@
++package com.shilapi.xcertplay
++
++import android.content.Context
++import com.shilapi.xcertplay.adb.AdbKeys
++import com.shilapi.xcertplay.adb.LocalAdb
++
++/**
++ * 部分车机固件不提供 VPN 授权对话框，有线 CarPlay 因此永远无法开始。Android 把被允许的
++ * ACTIVATE_VPN 应用操作视为该授权，车机自身的 adb 可以直接放行。
++ *
++ * 这里只使用驾驶员已经批准过的 adb 密钥（[LocalAdb.connect] 传 mayAsk = false），因此不会在行驶中
++ * 弹出"允许调试吗"对话框；密钥未获批准时静默失败，调用方按原路径继续提示用户。
++ *
++ * 复刻自 DiPlay 的同名机制（其 issue #604：车机无 VPN 授权对话框时有线连接无法启动）。
++ */
++internal object VpnPreConsent {
++    /** 放行本应用 VPN 授权的 adb 命令。 */
++    fun allowCommand(packageName: String): String = "appops set $packageName ACTIVATE_VPN allow"
++
++    /** 车机 adb 上执行放行命令的最小契约，便于在没有真车的环境下验证。 */
++    interface Adb {
++        /** 只用已批准的密钥连接；返回 true 表示通道可用。 */
++        fun connect(): Boolean
++
++        /** 在车机 shell 中执行放行命令。 */
++        fun shell(command: String): String?
++    }
++
++    /**
++     * 通过车机 adb 放行本应用的 VPN 授权；返回 adb 的可达状态，不可用时不会抛出异常。
++     */
++    fun grant(context: Context, adb: LocalAdb = LocalAdb(AdbKeys.load(context))): LocalAdb.Access =
++        runCatching {
++            adb.use {
++                val access = it.connect(mayAsk = false)
++                if (access == LocalAdb.Access.READY) {
++                    it.shell(allowCommand(context.packageName))
++                }
++                access
++            }
++        }.getOrDefault(LocalAdb.Access.UNREACHABLE)
++
++    /**
++     * 通过车机 adb 放行；返回是否成功执行了放行命令。adb 不可达或命令失败都返回 false。
++     */
++    fun grant(context: Context, adb: Adb): Boolean = runCatching {
++        if (!adb.connect()) return false
++        adb.shell(allowCommand(context.packageName)) != null
++    }.getOrDefault(false)
++}
++
++/**
++ * 放行后是否真的拿到授权：adb 放行成功只是前提，系统仍可能继续要求授权页。
++ * 只有 [prepare] 不再返回授权页才可继续连接。
++ */
++internal class VpnPreConsentGate(
++    private val preConsent: () -> Boolean,
++    private val prepare: () -> android.content.Intent?,
++) {
++    /** 放行已执行且系统不再要求授权页时才成立。 */
++    fun satisfied(): Boolean = try {
++        preConsent() && prepare() == null
++    } catch (_: RuntimeException) {
++        false
++    }
++}
 --- a/common/src/main/java/com/shilapi/xcertplay/WaitingScreenColors.kt
 +++ b/common/src/main/java/com/shilapi/xcertplay/WaitingScreenColors.kt
 @@ -1,10 +1,14 @@
@@ -6355,7 +6450,7 @@
  }
 --- a/common/src/main/java/com/shilapi/xcertplay/WheelKeyService.kt
 +++ b/common/src/main/java/com/shilapi/xcertplay/WheelKeyService.kt
-@@ -34,19 +34,16 @@
+@@ -34,19 +34,17 @@
   * and off; while it is on the keys drive CarPlay's main screen as a car's rotary knob would (see
   * [WheelJoystick]). A call always keeps the keys for the call. During a CarPlay call the call key answers on
   * the iPhone (see [CarPlayCallKeys]), and with a CarPlay session DiLink 3's CarPlay voice keys open Siri.
@@ -6372,10 +6467,11 @@
      private var learnt: ((WheelZoomSettings.Role, WheelKey) -> Unit)? = null
      private var learningCancelled: (() -> Unit)? = null
 -    private var learningRefused: ((WheelZoomSettings.Role) -> Unit)? = null
++    private val seenKeys = mutableSetOf<Int>()
      private val endLearning = Runnable { clearLearning() }
      private val endTimedMode = Runnable {
          refreshEligibility()
-@@ -57,7 +54,6 @@
+@@ -57,7 +55,6 @@
      internal var session: () -> Any? = { CarPlayBackgroundSession.snapshot()?.controller?.activeAirPlaySessionToken() }
      internal var knob: (AirPlayKnobState) -> Boolean = { CarPlayBackgroundSession.snapshot()?.controller?.sendKnob(it) == true }
      internal var routeActive: () -> Boolean = { CarPlayGlance.snapshot().maneuverType != null }
@@ -6383,7 +6479,7 @@
  
      // With the auto-off setting the joystick ends a while after the last press and when a route starts,
      // so the keys go back to music and volume without a thought.
-@@ -119,33 +115,18 @@
+@@ -119,15 +116,16 @@
      override fun onKeyEvent(event: KeyEvent): Boolean {
          if (event.action != KeyEvent.ACTION_DOWN && event.action != KeyEvent.ACTION_UP) return false
          val down = event.action == KeyEvent.ACTION_DOWN
@@ -6395,11 +6491,20 @@
 -            keys.onKey(null, down, event.repeatCount == 0, eligibleRoute() != null, calling,
 -                physicalKey = physicalKey)
 -            rearmTimedMode()
--            return true
--        }
++        // 银河车机的语音键在本机被系统语音助手先拿走；无障碍过滤器能更早看到按键。
++        // 有 CarPlay 会话时把它转成 Siri，没有会话时原样交回系统，不影响车机自带语音。
++        if (CarPlayMediaButton.opensSiri(event.keyCode) && session() != null) {
++            if (!down) Log.i(TAG, "CarPlay voice key ${event.keyCode}: Siri sent=" +
++                (CarPlayBackgroundSession.snapshot()?.controller?.requestSiri() == true))
+             return true
++        }
++        // 首次见到的按键记一行，便于对上银河车型实际的语音键码（不重复刷屏）。
++        if (down && seenKeys.add(event.keyCode)) {
++            Log.i(TAG, "key seen: ${event.keyCode}/${event.scanCode} device=${deviceName(event.deviceId)} carplay=${session() != null}")
+         }
          if (CarPlayCallKeys.onKey(this, event.keyCode, down)) return true
          if (BydOutputSettings.carPlayCallControls(this) &&
-             CarPlayMediaButton.opensSiriWhileCarPlay(event.keyCode) && session() != null) {
+@@ -135,17 +133,12 @@
              if (!down) Log.i(TAG, "CarPlay voice key ${event.keyCode}: Siri sent=${CarPlayBackgroundSession.snapshot()?.controller?.requestSiri() == true}")
              return true
          }
@@ -6420,7 +6525,7 @@
          val controller = CarPlayBackgroundSession.snapshot()?.controller
          val action = keys.onKey(
              role = role.takeIf { enabled },
-@@ -153,23 +134,16 @@
+@@ -153,23 +146,16 @@
              firstPress = event.repeatCount == 0,
              mapShown = eligibleRoute() != null,
              inCall = calling,
@@ -6449,7 +6554,7 @@
              },
          )
          when (action) {
-@@ -188,17 +162,10 @@
+@@ -188,17 +174,10 @@
  
      private fun refreshEligibility() {
          val joystickAllowed = WheelZoomSettings.joystick(this)
@@ -6468,7 +6573,7 @@
      }
  
      // The joystick's part of a first press; null leaves the key to the zoom, or to the car.
-@@ -268,7 +235,6 @@
+@@ -268,7 +247,6 @@
          learning = null
          learnt = null
          learningCancelled = null
@@ -6476,7 +6581,7 @@
          handler.removeCallbacks(endLearning)
          cancelled?.invoke()
      }
-@@ -289,6 +255,10 @@
+@@ -289,6 +267,10 @@
          }
      }
  
@@ -6487,7 +6592,7 @@
      // On the centre screen, and where the song shows on the dashboard: zoom with BYD's Bluetooth-music
      // icon (source 6), volume with the song's usual icon.
      private fun announce(zoomOn: Boolean) {
-@@ -303,8 +273,10 @@
+@@ -303,8 +285,10 @@
          }
      }
  
@@ -6499,7 +6604,7 @@
          private const val ZOOM_NOTE_SOURCE = 6
          private const val ELIGIBILITY_POLL_MILLIS = 250L
          private const val ROUTE_CHECK_MILLIS = 1_000L
-@@ -316,23 +288,18 @@
+@@ -316,23 +300,18 @@
          fun connected(): Boolean = running != null
  
          /** The next key pressed is assigned to [role]; [done] runs on the service's thread. */
@@ -6525,7 +6630,7 @@
  
          fun settingsChanged() { running?.onMain { settingsChanged() } }
  
-@@ -350,7 +317,7 @@
+@@ -350,7 +329,7 @@
              if (access != LocalAdb.Access.READY) return@use access
              if (!mayAsk && !needsRestore(context)) return@use if (connected()) access else LocalAdb.Access.UNREACHABLE
              val allowed = applyServiceSettings(context, adb::shell) {
@@ -6534,7 +6639,7 @@
              }
              if (allowed) Log.i(TAG, "wheel key service allowed over adb")
              if (allowed) access else LocalAdb.Access.UNREACHABLE
-@@ -391,18 +358,12 @@
+@@ -391,18 +370,12 @@
                  Settings.Secure.getInt(context.contentResolver, Settings.Secure.ACCESSIBILITY_ENABLED, 0) == 1
          }
  
@@ -6556,7 +6661,7 @@
           * puts it back over the car's adb, already allowed, when it is still not running a few seconds after
           * DiPlay starts, so the keys work without a visit to the settings.
           */
-@@ -444,20 +405,12 @@
+@@ -444,20 +417,12 @@
      }
  }
  
@@ -6577,7 +6682,7 @@
  
      fun filter(key: Any?, down: Boolean, firstPress: Boolean, decide: () -> WheelZoomKeys.Action): WheelZoomKeys.Action {
          key ?: return WheelZoomKeys.Action.PASS
-@@ -478,9 +431,6 @@
+@@ -478,9 +443,6 @@
      fun encode(): String = "$code|$scan|$device"
  
      companion object {
@@ -6587,7 +6692,7 @@
          fun decode(text: String?): WheelKey? = text?.split('|', limit = 3)?.takeIf { it.size == 3 }?.let {
              WheelKey(it[0].toIntOrNull() ?: return null, it[1].toIntOrNull() ?: return null, it[2])
          }
-@@ -495,8 +445,6 @@
+@@ -495,8 +457,6 @@
          private set
      private var route: Any? = null
      private val presses = WheelKeyPresses()
@@ -6596,7 +6701,7 @@
  
      /** A new phone/stream or a lost map never inherits the old session's zoom mode. */
      fun updateEligibility(route: Any?): Boolean {
-@@ -570,7 +518,7 @@
+@@ -570,7 +530,7 @@
              WheelZoomSettings.Role.NEXT, WheelZoomSettings.Role.ZOOM_OUT -> Action.NEXT
              WheelZoomSettings.Role.SELECT -> Action.SELECT
              WheelZoomSettings.Role.MODE -> Action.BACK
@@ -6605,7 +6710,7 @@
          }
      }
  
-@@ -582,42 +530,22 @@
+@@ -582,42 +542,22 @@
      }
  }
  
@@ -6651,7 +6756,7 @@
          MODE(WheelKey(305, 300, BYD_KEYS)),
          ZOOM_IN(WheelKey(291, 115, BYD_KEYS)),
          ZOOM_OUT(WheelKey(292, 114, BYD_KEYS)),
-@@ -625,7 +553,6 @@
+@@ -625,7 +565,6 @@
          PREVIOUS(WheelKey(88, 268, BYD_KEYS)),
          NEXT(WheelKey(87, 270, BYD_KEYS)),
          SELECT(WheelKey(353, 505, BYD_KEYS)),
@@ -6659,7 +6764,7 @@
      }
  
      /** The mode key switches zoom mode until pressed again, or turns it on for a few seconds. */
-@@ -660,36 +587,7 @@
+@@ -660,36 +599,7 @@
          WheelKeyService.settingsChanged()
      }
  
@@ -6697,7 +6802,7 @@
          WheelKey.decode(prefs(context).getString("key_${role.name}", null)) ?: role.defaultKey
  
      fun assign(context: Context, role: Role, key: WheelKey) {
-@@ -697,9 +595,7 @@
+@@ -697,9 +607,7 @@
          WheelKeyService.settingsChanged()
      }
  
@@ -7570,15 +7675,16 @@
      <string name="setup_needs_attention">Setup needs attention</string>
      <string name="share">Share</string>
      <string name="show_on_screen_debug_logs">Show on-screen debug logs</string>
-@@ -407,6 +365,7 @@
+@@ -407,6 +365,8 @@
      <string name="starting">Starting</string>
      <string name="starting_airplay_service">Starting AirPlay service</string>
      <string name="starting_wireless_hotspot">Starting wireless hotspot</string>
++    <string name="starting_existing_wifi">Connecting to your Wi-Fi</string>
 +    <string name="startup">Startup</string>
      <string name="still_waiting_for_usage_access_check_that_the_command_ran">Still waiting for Usage Access. Check that the command ran successfully for this car, then try again.</string>
      <string name="tap_a_number_to_test_14_driver_speaker_on_byd">Tap a number to test. 14 = driver speaker on BYD.</string>
      <string name="the_head_unit_couldn_t_start_carplay_wi_fi_check_wi_fi_and">The head unit couldn’t start CarPlay Wi-Fi. Check Wi-Fi and close other projection apps. Retrying…</string>
-@@ -439,6 +398,7 @@
+@@ -439,6 +399,7 @@
      <string name="wi_fi_p2p_5_ghz">Wi-Fi P2P (5 GHz)</string>
      <string name="wi_fi_session">Wi-Fi session</string>
      <string name="widest_width">Widest width</string>
@@ -7586,7 +7692,7 @@
      <string name="wireless_carplay">WIRELESS CARPLAY</string>
      <string name="wireless_carplay_2">Wireless CarPlay</string>
      <string name="wireless_carplay_active">Wireless CarPlay active</string>
-@@ -451,6 +411,7 @@
+@@ -451,6 +412,7 @@
      <string name="wpa2_wpa3_password_must_be_8_63_characters">WPA2/WPA3 password must be 8-63 characters</string>
      <string name="wpa3">WPA3</string>
      <string name="wpa3_transition">WPA3 transition</string>
@@ -7594,7 +7700,7 @@
      <string name="your_iphone_isn_t_available_unlock_it_and_check_bluetooth">Your iPhone isn’t available. Unlock it and check Bluetooth.</string>
      <string name="your_maps_music_and_conversations_carplay_right_here_on_yo">Your maps, music and conversations.\nCarPlay, right here on your car display.</string>
      <string name="your_phone_your_drive">YOUR PHONE. YOUR DRIVE.</string>
-@@ -499,18 +460,6 @@
+@@ -499,18 +461,6 @@
      <string name="turn_card_exit">Exit %1$d</string>
      <string name="center_map_follows_dashboard">Keep the home-screen map in sync with the dashboard</string>
      <string name="center_map_follows_dashboard_description">On: the home-screen card mirrors the dashboard map. Off: hide the home-screen card so only the instrument cluster shows that map. This does not change CarPlay’s own main screen.</string>
@@ -7613,7 +7719,7 @@
      <string name="dashboard_map_only_in_small_and_full_navi">Dashboard map only in Small and Full navi</string>
      <string name="dashboard_map_only_in_small_and_full_navi_description">DiPlay reads the navi mode you pick on the steering wheel. In Off and Turn on by navi the dashboard shows arrows only, so the iPhone does not send the map; in Small and Full screen navi it does, within a second or two of the switch. Needs ADB over network on the head unit.</string>
      <string name="check_adb_access">Check ADB access</string>
-@@ -684,11 +633,6 @@
+@@ -684,11 +634,6 @@
      <string name="wheel_key_role_previous">previous item</string>
      <string name="wheel_key_role_next">next item</string>
      <string name="wheel_key_role_select">select</string>
@@ -7625,7 +7731,7 @@
      <string name="wheel_key_role_back">back</string>
      <string name="wheel_key_service_label">DiPlay wheel keys</string>
      <string name="wheel_key_service_description">Lets DiPlay use the steering-wheel keys chosen in its settings to zoom the CarPlay map on the dashboard and to move around CarPlay\'s screen. It only receives key presses and does not read the screen.</string>
-@@ -732,14 +676,6 @@
+@@ -732,14 +677,6 @@
      <string name="side_panel_full_screen">⤢ Full screen</string>
      <string name="main_buffered_audio">Buffered music (experimental)</string>
      <string name="main_buffered_audio_description">Apps that support it, such as Apple Music, send up to about two minutes of music ahead, so short Wi-Fi gaps are not heard. Other apps keep the normal stream. Reconnects CarPlay.</string>
@@ -7640,7 +7746,7 @@
      <string name="car_button_in_carplay">Car button in CarPlay</string>
      <string name="car_button_icon">Icon</string>
      <string name="car_button_icon_custom">Custom icon</string>
-@@ -747,43 +683,4 @@
+@@ -747,43 +684,4 @@
      <string name="car_button_description">CarPlay shows this icon and name in its app list. Tap it to return to the car\'s own screen. Changes apply the next time CarPlay connects.</string>
      <string name="car_button_saved_next_connection">Saved. CarPlay shows the new icon and name the next time it connects.</string>
      <string name="this_head_unit_has_no_image_picker">This head unit has no image picker.</string>
